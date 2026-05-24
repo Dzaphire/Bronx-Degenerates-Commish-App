@@ -744,8 +744,8 @@ function buildVoteCard(v){
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function renderSettings(){
-  if(!activeSeason){el.innerHTML='<p style="color:var(--text3)">No season selected.</p>';return;}
   const el=document.getElementById('tab-settings');
+  if(!activeSeason){el.innerHTML='<p style="color:var(--text3)">No season selected.</p>';return;}
   el.innerHTML=`
   <div class="card">
     <div class="card-title">Season settings — ${esc(activeSeason.name)}</div>
@@ -759,12 +759,66 @@ function renderSettings(){
     <div class="fg" style="max-width:50%"><label>3rd place payout ($)</label><input id="s-third" type="number" value="${activeSeason.third_payout}"></div>
     <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
   </div>
+
+  <div class="card" style="border-color:var(--teal)">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <span>💾 Data backup &amp; restore</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" style="background:var(--teal);color:#fff;border-color:var(--teal);font-weight:600" onclick="downloadBackup()">
+          ⬇ Download backup
+        </button>
+        <button class="btn" onclick="document.getElementById('restore-file').click()">
+          ⬆ Restore from backup
+        </button>
+        <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restoreBackup(event)">
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px" id="backup-stats">
+      <div class="metric"><div class="mlabel">Seasons backed up</div><div class="mval" id="bk-seasons">—</div></div>
+      <div class="metric"><div class="mlabel">Last backup</div><div class="mval" style="font-size:14px" id="bk-date">Never</div></div>
+    </div>
+
+    <div style="background:#0a1f1e;border:1px solid var(--teal);border-radius:10px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:#5eead4;margin-bottom:12px">📋 How to download and save your backup</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${settingStep('1','Click "⬇ Download backup" above','Your browser downloads a file named <strong style="color:#f9fafb">fantasy-league-backup-[date].json</strong> — this contains every season, team, transaction, vote, and result.')}
+        ${settingStep('2','Find the file in your Downloads folder','On Mac it appears in your Downloads folder automatically. On iPhone it goes to Files → Downloads.')}
+        ${settingStep('3','Move it to a safe location','<strong style="color:#f9fafb">Recommended:</strong> Create a folder called <strong style="color:#f9fafb">"Fantasy League Backups"</strong> in your iCloud Drive. Drag the file there — iCloud syncs it to all your devices automatically.')}
+        ${settingStep('4','Do this regularly','Back up at least at the end of each week after recording results, and definitely at the end of every season. Label the files so you know which is which — e.g. <em style="color:#9ca3af">fantasy-league-backup-week-8.json</em>')}
+      </div>
+    </div>
+
+    <div style="background:#111827;border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">🔄 How to restore from a backup</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${settingStep('1','Click "⬆ Restore from backup" above','A file picker opens. Navigate to your iCloud Drive → Fantasy League Backups folder and select the JSON file you want to restore.')}
+        ${settingStep('2','Confirm the restore','The app will show you what is in the backup (how many seasons, teams, transactions) and ask you to confirm before doing anything.')}
+        ${settingStep('3','Data is restored instantly','All your seasons and data reload from the backup file and are written back into Supabase. This works even if you switched to a brand new Supabase project.')}
+      </div>
+      <div style="margin-top:12px;padding:10px 12px;background:#1a0a0a;border:1px solid var(--red);border-radius:8px;font-size:12px;color:#fca5a5;line-height:1.6">
+        ⚠️ <strong>Restore replaces all current data.</strong> Always download a fresh backup first before restoring an older one, so you don't accidentally overwrite something newer.
+      </div>
+    </div>
+
+    <div style="background:#111827;border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">🚨 If Supabase ever shuts down — what to do</div>
+      <div style="font-size:13px;color:var(--text3);line-height:1.8">
+        <strong style="color:var(--text)">1.</strong> Sign up for a new free database — good options: <strong style="color:var(--text)">Supabase</strong> (new project), <strong style="color:var(--text)">PlanetScale</strong>, or <strong style="color:var(--text)">Railway</strong><br>
+        <strong style="color:var(--text)">2.</strong> Run the <strong style="color:var(--text)">schema.sql</strong> file (from your original setup) in the new database to recreate the tables<br>
+        <strong style="color:var(--text)">3.</strong> Update the two lines in your app code on GitHub: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">SUPA_URL</code> and <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">SUPA_KEY</code> with your new database credentials<br>
+        <strong style="color:var(--text)">4.</strong> Click Restore from backup in this Settings tab — all your data comes back instantly<br>
+        <strong style="color:var(--text)">5.</strong> Everything is back to normal — same app, same data, different backend
+      </div>
+    </div>
+  </div>
+
   <div class="card" style="border-color:var(--accent)">
     <div class="card-title">📱 Access on any device</div>
     <p style="font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.6">This app lives at a permanent URL — no files, no iCloud, no saving. Your data syncs instantly everywhere.</p>
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Your app URL</div>
-      <div style="font-size:13px;color:var(--accent2);font-family:monospace" id="app-url-display">See your GitHub Pages URL after deployment</div>
+      <div style="font-size:13px;color:var(--accent2);font-family:monospace" id="app-url-display">Loading…</div>
     </div>
     <div style="font-size:13px;color:var(--text2);line-height:1.8">
       <strong style="color:var(--text)">Mac:</strong> Open the URL in Safari → File → Add to Dock<br>
@@ -776,13 +830,27 @@ function renderSettings(){
     <div class="card-title">🛠️ Making changes to the app</div>
     <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:10px">To update the app code, go to <strong style="color:var(--text)">claude.ai</strong>, describe what you want changed, and Claude will give you updated code. Then paste it into your GitHub repository — the app updates automatically.</p>
     <div style="padding:10px 14px;background:#1a1200;border:1px solid var(--amber);border-radius:8px;font-size:12px;color:#fde68a;line-height:1.6">
-      ⚠️ Your data is safe in Supabase — changing the app code never touches your data.
+      ⚠️ Your data is always safe in Supabase — changing the app code never touches your data.
     </div>
   </div>`;
-  // Try to show actual URL
+
   if(window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1'){
     document.getElementById('app-url-display').textContent=window.location.href.split('?')[0];
+  } else {
+    document.getElementById('app-url-display').textContent='Your GitHub Pages URL (e.g. https://dzaphire.github.io/Bronx-Degenerates-Commish-App)';
   }
+  // Show last backup date from localStorage
+  const lastBk=localStorage.getItem('fl_last_backup');
+  if(lastBk) document.getElementById('bk-date').textContent=lastBk;
+  document.getElementById('bk-seasons').textContent=seasons.length;
+}
+
+function settingStep(num, title, body){
+  return `<div style="display:grid;grid-template-columns:26px 1fr;gap:0 10px;align-items:start">
+    <div style="width:22px;height:22px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${num}</div>
+    <div><div style="font-size:13px;font-weight:600;color:#f9fafb;margin-bottom:2px">${title}</div>
+    <div style="font-size:12px;color:#9ca3af;line-height:1.6">${body}</div></div>
+  </div>`;
 }
 
 async function saveSettings(){
@@ -1120,6 +1188,117 @@ function showToast(msg,type=''){
   const t=document.createElement('div');
   t.className='toast'+(type?' '+type:'');t.textContent=msg;
   c.appendChild(t);setTimeout(()=>t.remove(),3500);
+}
+
+// ── Backup & Restore ─────────────────────────────────────────────────────────
+async function downloadBackup(){
+  const btn=document.querySelector('[onclick="downloadBackup()"]');
+  if(btn){btn.textContent='⏳ Preparing…';btn.disabled=true;}
+  try{
+    setSyncing(true);
+    // Pull ALL data across all seasons
+    const [allSeasons, allTeams, allWr, allTx, allVotes, allVr] = await Promise.all([
+      sb.from('seasons').select('*').order('created_at'),
+      sb.from('teams').select('*').order('created_at'),
+      sb.from('week_results').select('*').order('created_at'),
+      sb.from('transactions').select('*').order('created_at'),
+      sb.from('votes').select('*').order('created_at'),
+      sb.from('vote_responses').select('*').order('created_at'),
+    ]);
+    const backup={
+      version: 2,
+      exported_at: new Date().toISOString(),
+      app: 'Bronx Degenerates Fantasy League',
+      counts:{
+        seasons: allSeasons.data?.length||0,
+        teams: allTeams.data?.length||0,
+        transactions: allTx.data?.length||0,
+        week_results: allWr.data?.length||0,
+        votes: allVotes.data?.length||0,
+        vote_responses: allVr.data?.length||0,
+      },
+      data:{
+        seasons: allSeasons.data||[],
+        teams: allTeams.data||[],
+        week_results: allWr.data||[],
+        transactions: allTx.data||[],
+        votes: allVotes.data||[],
+        vote_responses: allVr.data||[],
+      }
+    };
+    const dateStr=new Date().toISOString().slice(0,10);
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`fantasy-league-backup-${dateStr}.json`;
+    a.click();
+    // Remember last backup date
+    const label=dateStr+' at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    localStorage.setItem('fl_last_backup', label);
+    setSyncing(false);
+    showToast(`Backup downloaded — ${backup.counts.seasons} seasons, ${backup.counts.teams} teams, ${backup.counts.transactions} transactions`,'success');
+    renderSettings();
+  } catch(e){
+    setSyncing(false);
+    showToast('Backup failed: '+e.message,'error');
+  }
+  if(btn){btn.textContent='⬇ Download backup';btn.disabled=false;}
+}
+
+async function restoreBackup(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  event.target.value='';
+  const reader=new FileReader();
+  reader.onload=async(e)=>{
+    let backup;
+    try{ backup=JSON.parse(e.target.result); }
+    catch(err){ showToast('Invalid backup file — could not read JSON','error'); return; }
+
+    if(!backup.data||!backup.data.seasons){
+      showToast('Invalid backup file — missing data structure','error'); return;
+    }
+    const c=backup.counts||{};
+    const confirmed=confirm(
+      `Restore this backup?\n\n`+
+      `Exported: ${backup.exported_at?new Date(backup.exported_at).toLocaleString():'Unknown'}\n`+
+      `Seasons: ${c.seasons||0}\n`+
+      `Teams: ${c.teams||0}\n`+
+      `Transactions: ${c.transactions||0}\n`+
+      `Votes: ${c.votes||0}\n\n`+
+      `⚠️ This will REPLACE all current data in Supabase.\nMake sure you downloaded a fresh backup first if needed.\n\nContinue?`
+    );
+    if(!confirmed)return;
+
+    setSyncing(true);
+    showToast('Restoring backup — please wait…');
+    try{
+      const d=backup.data;
+      // Delete all existing data in reverse dependency order
+      await sb.from('vote_responses').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      await sb.from('votes').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      await sb.from('transactions').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      await sb.from('week_results').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      await sb.from('teams').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      await sb.from('seasons').delete().neq('id','00000000-0000-0000-0000-000000000000');
+
+      // Reinsert in dependency order
+      if(d.seasons?.length)      await sb.from('seasons').insert(d.seasons);
+      if(d.teams?.length)        await sb.from('teams').insert(d.teams);
+      if(d.week_results?.length) await sb.from('week_results').insert(d.week_results);
+      if(d.transactions?.length) await sb.from('transactions').insert(d.transactions);
+      if(d.votes?.length)        await sb.from('votes').insert(d.votes);
+      if(d.vote_responses?.length) await sb.from('vote_responses').insert(d.vote_responses);
+
+      setSyncing(false);
+      showToast('Backup restored successfully! Reloading…','success');
+      setTimeout(()=>location.reload(), 1500);
+    } catch(err){
+      setSyncing(false);
+      showToast('Restore failed: '+err.message,'error');
+    }
+  };
+  reader.readAsText(file);
 }
 
 function logout() {
