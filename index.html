@@ -80,11 +80,37 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .empty-state p{font-size:13px;color:var(--text3);margin-bottom:20px;line-height:1.6}
 .sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--green)}
 @media(max-width:640px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}.fr{grid-template-columns:1fr}.content{padding:12px}}
+
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.login-box{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:40px 36px;width:min(420px,100%);text-align:center}
+.login-logo{font-size:48px;margin-bottom:12px}
+.login-title{font-size:22px;font-weight:700;margin-bottom:6px;color:var(--text)}
+.login-sub{font-size:13px;color:var(--text3);margin-bottom:28px}
+.login-input{font-family:inherit;font-size:15px;padding:12px 16px;border:1px solid var(--border2);border-radius:10px;background:var(--bg);color:var(--text);width:100%;outline:none;text-align:center;letter-spacing:2px;margin-bottom:12px}
+.login-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
+.login-btn{width:100%;padding:12px;font-size:15px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;margin-bottom:10px}
+.login-btn:hover{background:#4f46e5}
+.login-error{font-size:13px;color:var(--red);min-height:20px;margin-top:4px}
+.login-hint{font-size:11px;color:var(--text3);margin-top:16px;line-height:1.6}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 </style>
 </head>
 <body>
 
-<div class="topbar">
+
+<div id="login-screen" class="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🏈</div>
+    <div class="login-title">Bronx Degenerates</div>
+    <div class="login-sub">Fantasy Football League — Commissioner App</div>
+    <input class="login-input" type="password" id="login-pw" placeholder="Enter password"
+      onkeydown="if(event.key==='Enter')checkLogin()" autocomplete="current-password">
+    <button class="login-btn" onclick="checkLogin()">Enter League</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-hint">Authorized personnel only.<br>Contact the commissioner for access.</div>
+  </div>
+</div>
+<div class="topbar" id="main-app" style="display:none">
   <div class="logo">🏈 <span id="league-title">Bronx Degenerates</span></div>
   <div class="nav" id="main-nav">
     <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
@@ -98,12 +124,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   <div class="topbar-right">
     <span class="sync-dot" id="sync-dot" title="Connected"></span>
     <span id="sync-label" style="font-size:11px;color:var(--text3)">Live</span>
+    <button class="btn btn-sm" onclick="logout()" style="font-size:11px;padding:4px 10px;margin-left:4px">🔒 Lock</button>
   </div>
 </div>
 
-<div class="season-bar" id="season-bar"></div>
+<div class="season-bar" id="season-bar" style="display:none"></div>
 
-<div class="content">
+<div class="content" id="main-content" style="display:none">
   <div id="tab-dashboard"></div>
   <div id="tab-teams"       style="display:none"></div>
   <div id="tab-results"     style="display:none"></div>
@@ -881,8 +908,69 @@ function showToast(msg,type=''){
   c.appendChild(t);setTimeout(()=>t.remove(),3500);
 }
 
+function logout() {
+  sessionStorage.removeItem('fl_auth');
+  location.reload();
+}
+
 // ── Start ────────────────────────────────────────────────────────────────────
-init();
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+// Password is hashed so it's not visible in plain text in the source code.
+// To change the password: generate a new SHA-256 hash at sha256.online and replace the value below.
+// Current password: BxDegen2025!
+const PW_HASH = '2b45e9a182cd52a436ec7bfe58bd9ef7074d2ce43f98ad4129d38ab64c2aec25';
+
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkLogin() {
+  const pw = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-error');
+  if (!pw) { err.textContent = 'Please enter the password'; return; }
+  const hash = await hashPassword(pw);
+  if (hash === PW_HASH) {
+    sessionStorage.setItem('fl_auth', hash);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = '';
+    document.getElementById('season-bar').style.display = '';
+    document.getElementById('main-content').style.display = '';
+    err.textContent = '';
+    init();
+  } else {
+    err.textContent = 'Incorrect password. Try again.';
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+    // Shake animation
+    const box = document.querySelector('.login-box');
+    box.style.animation = 'none';
+    box.offsetHeight;
+    box.style.animation = 'shake .4s ease';
+  }
+}
+
+async function checkSession() {
+  const stored = sessionStorage.getItem('fl_auth');
+  if (!stored) return false;
+  return stored === PW_HASH;
+}
+
+
+(async function startup() {
+  const authed = await checkSession();
+  if (authed) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = '';
+    document.getElementById('season-bar').style.display = '';
+    document.getElementById('main-content').style.display = '';
+    init();
+  } else {
+    // Show login, focus password field
+    setTimeout(() => document.getElementById('login-pw').focus(), 100);
+  }
+})();
 </script>
 </body>
 </html>
