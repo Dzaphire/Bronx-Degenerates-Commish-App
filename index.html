@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fantasy League">
+<title>Bronx Degenerates — Fantasy League</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#111827;--bg2:#1f2937;--bg3:#374151;--border:#374151;--border2:#4b5563;--text:#f9fafb;--text2:#d1d5db;--text3:#9ca3af;--accent:#6366f1;--accent2:#818cf8;--green:#16a34a;--red:#e11d48;--amber:#d97706;--teal:#0d9488}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:100;height:52px}
+.logo{font-size:15px;font-weight:700;padding-right:20px;white-space:nowrap;color:var(--text)}
+.nav{display:flex;flex:1;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{padding:0 14px;height:52px;font-size:13px;font-weight:500;border:none;background:none;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;flex-shrink:0}
+.nav-btn:hover{color:var(--text)}
+.nav-btn.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.topbar-right{display:flex;gap:8px;align-items:center;margin-left:auto;padding-left:12px;flex-shrink:0}
+.season-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.season-bar::-webkit-scrollbar{display:none}
+.season-chip{padding:5px 14px;font-size:12px;font-weight:600;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--text3);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.season-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.season-chip:hover:not(.active){background:var(--bg3);color:var(--text)}
+.season-add-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:20px;border:1px dashed var(--border2);background:none;color:var(--text3);cursor:pointer;flex-shrink:0;white-space:nowrap}
+.season-add-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+.content{max-width:1100px;margin:0 auto;padding:20px}
+.card{background:var(--bg2);border-radius:12px;border:1px solid var(--border);padding:18px 20px;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:600;margin-bottom:14px;color:var(--text)}
+.metric{background:var(--bg);border-radius:10px;padding:12px 14px;border:1px solid var(--border)}
+.mlabel{font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.3px}
+.mval{font-size:22px;font-weight:700;color:var(--text)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.clickable:hover td{background:var(--bg3);cursor:pointer}
+.btn{padding:7px 14px;font-size:13px;font-weight:500;border:1px solid var(--border2);background:var(--bg2);color:var(--text);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--bg3)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#4f46e5}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-red{background:#fff1f2;color:var(--red);border-color:#fca5a5}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.bg{background:#f0fdf4;color:var(--green)}.br{background:#fff1f2;color:var(--red)}.bb{background:#eff6ff;color:#2563eb}.bp{background:#f5f3ff;color:#7c3aed}.ba{background:#fffbeb;color:var(--amber)}.bgray{background:var(--bg3);color:var(--text3)}
+label{font-size:12px;font-weight:500;color:var(--text3);display:block;margin-bottom:5px}
+input,select,textarea{font-family:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.fg{margin-bottom:12px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.sep{height:1px;background:var(--border);margin:16px 0}
+.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px}
+.tag-venmo{background:#dbeafe;color:#1d4ed8}.tag-paypal{background:#f5f3ff;color:#6d28d9}.tag-cash{background:#f0fdf4;color:#15803d}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--bg2);border-radius:16px;padding:22px;width:min(520px,100%);max-height:88vh;overflow-y:auto;position:relative;border:1px solid var(--border2)}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:16px}
+.close-x{position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text3);line-height:1;padding:4px}
+.close-x:hover{color:var(--text)}
+.week-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px}
+.loading-screen .spinner{width:36px;height:36px;border-width:3px}
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:#1d1d1f;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;max-width:320px;line-height:1.4;border-left:3px solid var(--accent);animation:slideIn .2s ease}
+.toast.error{border-left-color:var(--red)}
+.toast.success{border-left-color:var(--green)}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+.empty-state{text-align:center;padding:48px 20px}
+.empty-state .icon{font-size:40px;margin-bottom:14px}
+.empty-state h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.empty-state p{font-size:13px;color:var(--text3);margin-bottom:20px;line-height:1.6}
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--green)}
+@media(max-width:640px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}.fr{grid-template-columns:1fr}.content{padding:12px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">🏈 <span id="league-title">Bronx Degenerates</span></div>
+  <div class="nav" id="main-nav">
+    <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
+    <button class="nav-btn" onclick="showTab('teams')">Teams</button>
+    <button class="nav-btn" onclick="showTab('results')">Results</button>
+    <button class="nav-btn" onclick="showTab('money')">Money</button>
+    <button class="nav-btn" onclick="showTab('transactions')">Transactions</button>
+    <button class="nav-btn" onclick="showTab('votes')">🗳 Votes</button>
+    <button class="nav-btn" onclick="showTab('settings')">Settings</button>
+  </div>
+  <div class="topbar-right">
+    <span class="sync-dot" id="sync-dot" title="Connected"></span>
+    <span id="sync-label" style="font-size:11px;color:var(--text3)">Live</span>
+  </div>
+</div>
+
+<div class="season-bar" id="season-bar"></div>
+
+<div class="content">
+  <div id="tab-dashboard"></div>
+  <div id="tab-teams"       style="display:none"></div>
+  <div id="tab-results"     style="display:none"></div>
+  <div id="tab-money"       style="display:none"></div>
+  <div id="tab-transactions"style="display:none"></div>
+  <div id="tab-votes"       style="display:none"></div>
+  <div id="tab-settings"    style="display:none"></div>
+</div>
+
+<div id="overlay" style="display:none"></div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ── Supabase client ──────────────────────────────────────────────────────────
+const SUPA_URL = 'https://tumoekkwdheswwctoomk.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1bW9la2t3ZGhlc3d3Y3Rvb21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NTQ5OTEsImV4cCI6MjA5NTEzMDk5MX0.xXdJCKe3Cp5mYd64cQ7YLaXC1zRGr1YVps5ujCDwkZA';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let seasons = [], activeSeason = null;
+let teams = [], weekResults = [], transactions = [], votes = [], voteResponses = [];
+let currentTab = 'dashboard';
+const tabOrder = ['dashboard','teams','results','money','transactions','votes','settings'];
+
+// ── Avatar helpers ───────────────────────────────────────────────────────────
+const AV_BG  = ['#f5f3ff','#eff6ff','#f0fdf4','#fffbeb','#fff1f2','#f0fdfa'];
+const AV_CLR = ['#7c3aed','#2563eb','#16a34a','#d97706','#e11d48','#0d9488'];
+function av(team, sz=34) {
+  const i = teams.indexOf(team) % 6;
+  const ini = team.name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  return `<div class="avatar" style="width:${sz}px;height:${sz}px;background:${AV_BG[i]};color:${AV_CLR[i]};font-size:${sz<36?11:13}px">${ini}</div>`;
+}
+function fm(n){return '$'+Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function fd(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function gtb(id){return teams.find(t=>t.id===id);}
+
+// ── Derived calculations ─────────────────────────────────────────────────────
+function teamPaidIn(team){return transactions.filter(t=>t.team_id===team.id&&t.type==='in').reduce((a,t)=>a+Number(t.amount),0);}
+function teamPaidOut(team){return transactions.filter(t=>t.team_id===team.id&&t.type==='out').reduce((a,t)=>a+Number(t.amount),0);}
+function teamWinnings(team){
+  if(!activeSeason) return 0;
+  let w=0;
+  weekResults.forEach(r=>{if(r.winner_team_id===team.id)w+=Number(activeSeason.weekly_payout);});
+  if(activeSeason.champion_team_id===team.id) w+=Number(activeSeason.champion_payout);
+  if(activeSeason.second_team_id===team.id)   w+=Number(activeSeason.second_payout);
+  if(activeSeason.third_team_id===team.id)    w+=Number(activeSeason.third_payout);
+  return w;
+}
+function teamWeekWins(team){return weekResults.filter(r=>r.winner_team_id===team.id).length;}
+function netOwed(team){return(Number(activeSeason.entry_fee)-teamPaidIn(team))-(teamWinnings(team)-teamPaidOut(team));}
+function totalIn(){return transactions.filter(t=>t.type==='in').reduce((a,t)=>a+Number(t.amount),0);}
+function totalOut(){return transactions.filter(t=>t.type==='out').reduce((a,t)=>a+Number(t.amount),0);}
+function netBadge(net){
+  if(net>0.005) return `<span class="badge br">Owes ${fm(net)}</span>`;
+  if(net<-0.005) return `<span class="badge bg">Credit ${fm(-net)}</span>`;
+  return `<span class="badge bg">Settled</span>`;
+}
+
+// ── Sync indicator ───────────────────────────────────────────────────────────
+function setSyncing(busy){
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-label');
+  if(!dot) return;
+  dot.style.background=busy?'#ff9500':'#34c759';
+  lbl.textContent=busy?'Saving…':'Live';
+}
+
+// ── Load all data for active season ─────────────────────────────────────────
+async function loadSeasonData(seasonId){
+  setSyncing(true);
+  try {
+    const [t,wr,tx,v,vr] = await Promise.all([
+      sb.from('teams').select('*').eq('season_id',seasonId).order('created_at'),
+      sb.from('week_results').select('*').eq('season_id',seasonId),
+      sb.from('transactions').select('*').eq('season_id',seasonId).order('tx_date',{ascending:false}),
+      sb.from('votes').select('*').eq('season_id',seasonId).order('created_at'),
+      sb.from('vote_responses').select('*'),
+    ]);
+    teams         = t.data  || [];
+    weekResults   = wr.data || [];
+    transactions  = tx.data || [];
+    votes         = v.data  || [];
+    voteResponses = vr.data || [];
+  } catch(e){ showToast('Error loading data: '+e.message,'error'); }
+  setSyncing(false);
+}
+
+async function loadSeasons(){
+  const {data,error}=await sb.from('seasons').select('*').order('created_at');
+  if(error){showToast('Could not load seasons: '+error.message,'error');return;}
+  seasons=data||[];
+  if(seasons.length>0 && !activeSeason) activeSeason=seasons[0];
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init(){
+  document.getElementById('tab-dashboard').innerHTML=`<div class="loading-screen"><div class="spinner"></div><div style="color:var(--text3);font-size:14px">Connecting to database…</div></div>`;
+  await loadSeasons();
+  if(activeSeason){
+    await loadSeasonData(activeSeason.id);
+    renderSeasonBar();
+    renderDash();
+  } else {
+    document.getElementById('tab-dashboard').innerHTML=`<div class="empty-state"><div class="icon">🏈</div><h3>No seasons yet</h3><p>Create your first season to get started.</p><button class="btn btn-primary" onclick="openNewSeasonModal()">+ Create season</button></div>`;
+    renderSeasonBar();
+  }
+}
+
+// ── Season bar ───────────────────────────────────────────────────────────────
+function renderSeasonBar(){
+  const bar=document.getElementById('season-bar');
+  const chips=seasons.map(s=>`<button class="season-chip${s.id===activeSeason?.id?' active':''}" onclick="switchSeason('${s.id}')">${esc(s.name)}</button>`).join('');
+  bar.innerHTML=chips+`<button class="season-add-btn" onclick="openNewSeasonModal()">+ New season</button>`;
+}
+
+async function switchSeason(id){
+  activeSeason=seasons.find(s=>s.id===id);
+  renderSeasonBar();
+  showTab(currentTab,true);
+}
+
+// ── Tab routing ──────────────────────────────────────────────────────────────
+const tabRenders={dashboard:renderDash,teams:renderTeams,results:renderResults,money:renderMoney,transactions:renderTx,votes:renderVotes,settings:renderSettings};
+async function showTab(name, reload=false){
+  if(!activeSeason && name!=='settings'){
+    document.getElementById('tab-'+name).innerHTML=`<div class="empty-state"><div class="icon">🏈</div><h3>No season selected</h3><p>Create a season first.</p><button class="btn btn-primary" onclick="openNewSeasonModal()">+ Create season</button></div>`;
+    tabOrder.forEach((t,i)=>{document.getElementById('tab-'+t).style.display='none';document.querySelectorAll('.nav-btn')[i].classList.remove('active');});
+    document.getElementById('tab-'+name).style.display='block';
+    document.querySelectorAll('.nav-btn')[tabOrder.indexOf(name)].classList.add('active');
+    currentTab=name; return;
+  }
+  tabOrder.forEach((t,i)=>{document.getElementById('tab-'+t).style.display='none';document.querySelectorAll('.nav-btn')[i].classList.remove('active');});
+  document.getElementById('tab-'+name).style.display='block';
+  document.querySelectorAll('.nav-btn')[tabOrder.indexOf(name)].classList.add('active');
+  currentTab=name;
+  if(reload){
+    document.getElementById('tab-'+name).innerHTML=`<div class="loading-screen"><div class="spinner"></div></div>`;
+    await loadSeasonData(activeSeason.id);
+  }
+  tabRenders[name]();
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDash(){
+  const el=document.getElementById('tab-dashboard');
+  const pool=teams.length*Number(activeSeason.entry_fee);
+  const col=totalIn(), out=totalOut();
+  const rows=teams.map(t=>{
+    const wn=teamWinnings(t),pi=teamPaidIn(t),net=netOwed(t),wi=teamWeekWins(t);
+    let pos='';
+    if(activeSeason.champion_team_id===t.id) pos+=`<span class="badge ba" style="margin-right:3px">🏆 Champ</span>`;
+    if(activeSeason.second_team_id===t.id)   pos+=`<span class="badge bb" style="margin-right:3px">2nd</span>`;
+    if(activeSeason.third_team_id===t.id)    pos+=`<span class="badge bp" style="margin-right:3px">3rd</span>`;
+    if(wi>0) pos+=`<span class="badge bgray">${wi}W</span>`;
+    return `<tr class="clickable" onclick="openTeamModal('${t.id}')">
+      <td><div style="display:flex;align-items:center;gap:10px">${av(t)}<div><div style="font-weight:600">${esc(t.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(t.owner1)}${t.owner2?' & '+esc(t.owner2):''}</div></div></div></td>
+      <td>${pos||'<span style="color:var(--border2)">—</span>'}</td>
+      <td><span style="color:var(--green);font-weight:600">${fm(pi)}</span> <span style="color:var(--text3);font-size:12px">/ ${fm(activeSeason.entry_fee)}</span></td>
+      <td style="color:#818cf8;font-weight:600">${fm(wn)}</td>
+      <td>${netBadge(net)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`
+  <div class="g4" style="margin-bottom:14px">
+    <div class="metric"><div class="mlabel">Total pool</div><div class="mval">${fm(pool)}</div></div>
+    <div class="metric"><div class="mlabel">Collected</div><div class="mval" style="color:var(--green)">${fm(col)}</div></div>
+    <div class="metric"><div class="mlabel">Paid out</div><div class="mval" style="color:var(--red)">${fm(out)}</div></div>
+    <div class="metric"><div class="mlabel">On hand</div><div class="mval" style="color:#60a5fa">${fm(col-out)}</div></div>
+  </div>
+  <div class="g2" style="margin-bottom:14px">
+    <div class="metric"><div class="mlabel">Weeks complete</div><div class="mval">${weekResults.length} / ${activeSeason.total_weeks}</div></div>
+    <div class="metric"><div class="mlabel">Still owed (entry fees)</div><div class="mval" style="color:var(--red)">${fm(pool-col)}</div></div>
+  </div>
+  <div class="card"><div class="card-title">All teams — click a row to open team profile</div>
+    ${teams.length?`<table><thead><tr><th>Team</th><th>Standing</th><th>Paid in</th><th>Winnings</th><th>Net status</th></tr></thead><tbody>${rows}</tbody></table>`
+    :`<div class="empty-state"><div class="icon">👥</div><h3>No teams yet</h3><p>Add teams in the Teams tab.</p></div>`}
+  </div>`;
+}
+
+// ── TEAMS ────────────────────────────────────────────────────────────────────
+function renderTeams(){
+  const el=document.getElementById('tab-teams');
+  const cards=teams.map(t=>{
+    const wn=teamWinnings(t),pi=teamPaidIn(t),net=netOwed(t),wi=teamWeekWins(t);
+    return `<div class="card" style="cursor:pointer" onclick="openTeamModal('${t.id}')">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        ${av(t,42)}<div style="flex:1"><div style="font-size:15px;font-weight:600">${esc(t.name)}</div>
+        <div style="font-size:12px;color:var(--text3)">${esc(t.owner1)}${t.owner2?' & '+esc(t.owner2):''}</div></div>
+        ${netBadge(net)}</div>
+      <div class="g3">
+        <div class="metric"><div class="mlabel">Paid in</div><div style="font-size:18px;font-weight:700;color:var(--green)">${fm(pi)}</div></div>
+        <div class="metric"><div class="mlabel">Winnings</div><div style="font-size:18px;font-weight:700;color:#818cf8">${fm(wn)}</div></div>
+        <div class="metric"><div class="mlabel">Week wins</div><div style="font-size:18px;font-weight:700">${wi}</div></div>
+      </div></div>`;
+  }).join('');
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h2 style="font-size:18px;font-weight:600">All teams</h2>
+    <button class="btn btn-primary" onclick="openAddTeamModal()">+ Add team</button></div>
+    ${teams.length?cards:`<div class="empty-state"><div class="icon">👥</div><h3>No teams yet</h3><p>Add your first team to get started.</p><button class="btn btn-primary" onclick="openAddTeamModal()">+ Add team</button></div>`}`;
+}
+
+// ── RESULTS ──────────────────────────────────────────────────────────────────
+function renderResults(){
+  const el=document.getElementById('tab-results');
+  const wkTotal=weekResults.length*Number(activeSeason.weekly_payout);
+  const endTotal=(activeSeason.champion_team_id?Number(activeSeason.champion_payout):0)
+               +(activeSeason.second_team_id?Number(activeSeason.second_payout):0)
+               +(activeSeason.third_team_id?Number(activeSeason.third_payout):0);
+  const pool=teams.length*Number(activeSeason.entry_fee);
+  function tOpts(val){
+    return `<option value="">— pick team —</option>`+teams.map(t=>`<option value="${t.id}"${val===t.id?' selected':''}>${esc(t.name)}</option>`).join('');
+  }
+  const ct=gtb(activeSeason.champion_team_id),st=gtb(activeSeason.second_team_id),tt=gtb(activeSeason.third_team_id);
+  const weeks=Array.from({length:activeSeason.total_weeks},(_,i)=>{
+    const w=i+1,wr=weekResults.find(r=>r.week_number===w),wt=wr?gtb(wr.winner_team_id):null;
+    return `<div class="week-row">
+      <span style="font-size:13px;font-weight:600;min-width:64px">Week ${w}</span>
+      <span style="flex:1;font-size:13px;color:${wt?'var(--green)':'var(--text3)'}">${wt?esc(wt.name):'Not set'}</span>
+      ${wt?`<span class="badge bg">${fm(activeSeason.weekly_payout)}</span>`:''}
+      <select onchange="setWeekWinner(${w},this.value)" style="width:175px" aria-label="Week ${w} winner">
+        ${tOpts(wr?.winner_team_id)}
+      </select></div>`;
+  }).join('');
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title">🏆 Season standings</div>
+    <div class="g3">
+      <div class="metric"><div class="mlabel">Champion <span class="badge ba">+${fm(activeSeason.champion_payout)}</span></div>
+        <select onchange="setStanding('champion_team_id',this.value)" style="margin-top:8px">${tOpts(activeSeason.champion_team_id)}</select>
+        ${ct?`<div style="font-size:13px;color:var(--green);font-weight:600;margin-top:5px">${esc(ct.name)}</div>`:''}</div>
+      <div class="metric"><div class="mlabel">2nd place <span class="badge bb">+${fm(activeSeason.second_payout)}</span></div>
+        <select onchange="setStanding('second_team_id',this.value)" style="margin-top:8px">${tOpts(activeSeason.second_team_id)}</select>
+        ${st?`<div style="font-size:13px;color:#60a5fa;font-weight:600;margin-top:5px">${esc(st.name)}</div>`:''}</div>
+      <div class="metric"><div class="mlabel">3rd place <span class="badge bp">+${fm(activeSeason.third_payout)}</span></div>
+        <select onchange="setStanding('third_team_id',this.value)" style="margin-top:8px">${tOpts(activeSeason.third_team_id)}</select>
+        ${tt?`<div style="font-size:13px;color:#a78bfa;font-weight:600;margin-top:5px">${esc(tt.name)}</div>`:''}</div>
+    </div></div>
+  <div class="card"><div class="card-title">Pool math</div>
+    <div class="g4">
+      <div class="metric"><div class="mlabel">Total pool</div><div class="mval">${fm(pool)}</div></div>
+      <div class="metric"><div class="mlabel">Weekly payouts</div><div class="mval" style="color:var(--red)">${fm(wkTotal)}</div></div>
+      <div class="metric"><div class="mlabel">Season-end</div><div class="mval" style="color:var(--red)">${fm(endTotal)}</div></div>
+      <div class="metric"><div class="mlabel">Remaining</div><div class="mval" style="color:#60a5fa">${fm(pool-wkTotal-endTotal)}</div></div>
+    </div></div>
+  <div class="card"><div class="card-title">Weekly results — ${weekResults.length} of ${activeSeason.total_weeks} set</div>${weeks}</div>`;
+}
+
+async function setWeekWinner(week,teamId){
+  setSyncing(true);
+  const existing=weekResults.find(r=>r.week_number===week);
+  if(teamId){
+    if(existing){
+      await sb.from('week_results').update({winner_team_id:teamId}).eq('id',existing.id);
+    } else {
+      await sb.from('week_results').insert({season_id:activeSeason.id,week_number:week,winner_team_id:teamId});
+    }
+  } else if(existing){
+    await sb.from('week_results').delete().eq('id',existing.id);
+  }
+  await loadSeasonData(activeSeason.id);
+  setSyncing(false);
+  renderResults();
+}
+
+async function setStanding(field,teamId){
+  setSyncing(true);
+  await sb.from('seasons').update({[field]:teamId||null}).eq('id',activeSeason.id);
+  activeSeason[field]=teamId||null;
+  seasons=seasons.map(s=>s.id===activeSeason.id?{...activeSeason}:s);
+  setSyncing(false);
+  renderResults();
+}
+
+// ── MONEY ────────────────────────────────────────────────────────────────────
+function renderMoney(){
+  const el=document.getElementById('tab-money');
+  const col=totalIn(),out=totalOut(),pool=teams.length*Number(activeSeason.entry_fee);
+  const dueTbody=teams.map(t=>{
+    const pi=teamPaidIn(t),owed=Math.max(0,Number(activeSeason.entry_fee)-pi);
+    return `<tr><td><div style="font-weight:600">${esc(t.name)}</div><div style="font-size:11px;color:var(--text3)">${esc(t.owner1)}${t.owner2?' & '+esc(t.owner2):''}</div></td>
+      <td style="color:var(--green);font-weight:600">${fm(pi)}</td>
+      <td style="${owed>0?'color:var(--red)':'color:var(--green)'};font-weight:600">${fm(owed)}</td>
+      <td>${owed<=0?'<span class="badge bg">Paid</span>':'<span class="badge br">Pending</span>'}</td>
+      <td><button class="btn btn-sm" onclick="openPayInModal('${t.id}')">Record payment</button></td></tr>`;
+  }).join('');
+  const payTbody=teams.map(t=>{
+    const wn=teamWinnings(t),po=teamPaidOut(t),rem=wn-po;
+    return `<tr><td style="font-weight:600">${esc(t.name)}</td>
+      <td style="color:#818cf8;font-weight:600">${fm(wn)}</td>
+      <td style="color:var(--green);font-weight:600">${fm(po)}</td>
+      <td style="${rem>0?'color:var(--red)':'color:var(--green)'};font-weight:600">${fm(rem)}</td>
+      <td><button class="btn btn-sm" onclick="openPayOutModal('${t.id}')">Record payout</button></td></tr>`;
+  }).join('');
+  el.innerHTML=`
+  <div class="g4" style="margin-bottom:14px">
+    <div class="metric"><div class="mlabel">Total pool</div><div class="mval">${fm(pool)}</div></div>
+    <div class="metric"><div class="mlabel">Collected</div><div class="mval" style="color:var(--green)">${fm(col)}</div></div>
+    <div class="metric"><div class="mlabel">Still owed</div><div class="mval" style="color:var(--red)">${fm(pool-col)}</div></div>
+    <div class="metric"><div class="mlabel">On hand</div><div class="mval" style="color:#60a5fa">${fm(col-out)}</div></div>
+  </div>
+  <div class="card"><div class="card-title">Entry fee collection — ${fm(activeSeason.entry_fee)} per team</div>
+    ${teams.length?`<table><thead><tr><th>Team</th><th>Paid</th><th>Still owed</th><th>Status</th><th></th></tr></thead><tbody>${dueTbody}</tbody></table>`:'<p style="color:var(--text3);font-size:13px">No teams yet</p>'}
+  </div>
+  <div class="card"><div class="card-title">Winnings payouts</div>
+    ${teams.length?`<table><thead><tr><th>Team</th><th>Winnings</th><th>Paid out</th><th>Still to pay</th><th></th></tr></thead><tbody>${payTbody}</tbody></table>`:'<p style="color:var(--text3);font-size:13px">No teams yet</p>'}
+  </div>`;
+}
+
+// ── TRANSACTIONS ─────────────────────────────────────────────────────────────
+function renderTx(){
+  const el=document.getElementById('tab-transactions');
+  const rows=transactions.map(tx=>{
+    const t=gtb(tx.team_id);
+    const mc=tx.method==='Cash'?'tag-cash':tx.method==='PayPal'?'tag-paypal':'tag-venmo';
+    return `<tr><td style="white-space:nowrap;color:var(--text3)">${fd(tx.tx_date)}</td>
+      <td style="font-weight:600">${t?esc(t.name):'—'}</td>
+      <td>${tx.type==='in'?`<span style="color:var(--green);font-weight:700">+${fm(tx.amount)}</span>`:`<span style="color:var(--red);font-weight:700">−${fm(tx.amount)}</span>`}</td>
+      <td><span class="tag ${mc}">${tx.method}</span></td>
+      <td style="color:var(--text3)">${esc(tx.note)}</td></tr>`;
+  }).join('');
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h2 style="font-size:18px;font-weight:600">All transactions</h2>
+    <button class="btn btn-primary" onclick="openAddTxModal()">+ Add transaction</button></div>
+    <div class="card">
+      ${rows?`<table><thead><tr><th>Date</th><th>Team</th><th>Amount</th><th>Method</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>`
+      :`<div class="empty-state"><div class="icon">💸</div><h3>No transactions yet</h3><p>Record payments and payouts here.</p></div>`}
+    </div>`;
+}
+
+// ── VOTES ────────────────────────────────────────────────────────────────────
+function renderVotes(){
+  const el=document.getElementById('tab-votes');
+  if(!votes.length){
+    el.innerHTML=`<div class="empty-state"><div class="icon">🗳️</div><h3>No votes yet</h3><p>Create a question for the league to vote on.</p><button class="btn btn-primary" onclick="openNewVoteModal()">+ Create first vote</button></div>`;
+    return;
+  }
+  const cards=votes.map(v=>buildVoteCard(v)).join('');
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h2 style="font-size:18px;font-weight:600">League votes</h2>
+    <button class="btn btn-primary" onclick="openNewVoteModal()">+ New vote</button></div>${cards}`;
+}
+
+function buildVoteCard(v){
+  const myResponses=voteResponses.filter(r=>r.vote_id===v.id);
+  const votedCount=myResponses.length,totalTeams=teams.length,pending=totalTeams-votedCount;
+  const opts=v.options||[];
+  const tally={};opts.forEach(o=>{tally[o]=0;});
+  myResponses.forEach(r=>{if(tally[r.answer]!==undefined)tally[r.answer]++;});
+  const maxVotes=Math.max(...Object.values(tally),1);
+  const optBars=opts.map(opt=>{
+    const count=tally[opt]||0,pct=votedCount>0?Math.round(count/votedCount*100):0,barW=Math.round(count/maxVotes*100),isWin=count===maxVotes&&count>0;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;color:${isWin?'var(--text)':'var(--text2)'};font-weight:${isWin?600:400}">${esc(opt)}</span>
+        <span style="font-size:12px;color:var(--text3);font-weight:600">${count} vote${count!==1?'s':''} (${pct}%)</span></div>
+      <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:${isWin?'var(--accent)':'var(--border2)'};border-radius:4px;transition:width .3s"></div></div></div>`;
+  }).join('');
+  const voteLog=teams.map(t=>{
+    const resp=myResponses.find(r=>r.team_id===t.id);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bg)">
+      <span style="font-size:12px;color:var(--text2)">${esc(t.name)}</span>
+      ${resp?`<span style="font-size:11px;font-weight:600;background:#1e1b4b;color:var(--accent2);padding:2px 8px;border-radius:10px">${esc(resp.answer)}</span>`
+            :`<span style="font-size:11px;color:var(--border2);font-style:italic">Not voted</span>`}</div>`;
+  }).join('');
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${v.closed?'var(--text3)':'var(--green)'};display:inline-block"></span>
+          <span style="font-size:11px;font-weight:600;color:${v.closed?'var(--text3)':'var(--green)'};text-transform:uppercase;letter-spacing:.5px">${v.closed?'Closed':'Open'}</span>
+          ${v.category?`<span style="font-size:11px;background:var(--bg3);color:var(--text3);padding:2px 8px;border-radius:10px;border:1px solid var(--border)">${esc(v.category)}</span>`:''}
+        </div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(v.question)}</div>
+        ${v.description?`<div style="font-size:12px;color:var(--text3);line-height:1.5">${esc(v.description)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+        ${!v.closed?`<button class="btn btn-sm" onclick="openRecordVoteModal('${v.id}')">Record vote</button>`:''}
+        <button class="btn btn-sm" onclick="openEditVoteModal('${v.id}')">✏️</button>
+        <button class="btn btn-sm" onclick="toggleVoteClosed('${v.id}',${!v.closed})">${v.closed?'🔓':'🔒'}</button>
+        <button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteVote('${v.id}')">🗑</button>
+      </div></div>
+    <div class="g3" style="margin-bottom:14px">
+      <div class="metric"><div class="mlabel">Voted</div><div style="font-size:20px;font-weight:700;color:var(--green)">${votedCount} / ${totalTeams}</div></div>
+      <div class="metric"><div class="mlabel">Pending</div><div style="font-size:20px;font-weight:700;color:${pending>0?'var(--amber)':'var(--text3)'}">${pending}</div></div>
+      <div class="metric"><div class="mlabel">Options</div><div style="font-size:20px;font-weight:700">${opts.length}</div></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Results</div>
+      ${votedCount?optBars:`<div style="font-size:13px;color:var(--border2);font-style:italic">No votes recorded yet</div>`}
+    </div>
+    <details><summary style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;list-style:none;cursor:pointer;user-select:none">▶ Vote log by team</summary>
+      <div style="margin-top:10px">${voteLog}</div></details>
+  </div>`;
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function renderSettings(){
+  if(!activeSeason){el.innerHTML='<p style="color:var(--text3)">No season selected.</p>';return;}
+  const el=document.getElementById('tab-settings');
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title">Season settings — ${esc(activeSeason.name)}</div>
+    <div class="fr"><div class="fg"><label>Season name</label><input id="s-name" value="${esc(activeSeason.name)}"></div>
+    <div class="fg"><label>Total weeks</label><input id="s-weeks" type="number" value="${activeSeason.total_weeks}"></div></div>
+    <div class="sep"></div>
+    <div class="fr"><div class="fg"><label>Entry fee ($)</label><input id="s-entry" type="number" value="${activeSeason.entry_fee}"></div>
+    <div class="fg"><label>Weekly payout ($)</label><input id="s-weekly" type="number" value="${activeSeason.weekly_payout}"></div></div>
+    <div class="fr"><div class="fg"><label>Champion payout ($)</label><input id="s-champ" type="number" value="${activeSeason.champion_payout}"></div>
+    <div class="fg"><label>2nd place payout ($)</label><input id="s-second" type="number" value="${activeSeason.second_payout}"></div></div>
+    <div class="fg" style="max-width:50%"><label>3rd place payout ($)</label><input id="s-third" type="number" value="${activeSeason.third_payout}"></div>
+    <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
+  </div>
+  <div class="card" style="border-color:var(--accent)">
+    <div class="card-title">📱 Access on any device</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.6">This app lives at a permanent URL — no files, no iCloud, no saving. Your data syncs instantly everywhere.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Your app URL</div>
+      <div style="font-size:13px;color:var(--accent2);font-family:monospace" id="app-url-display">See your GitHub Pages URL after deployment</div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8">
+      <strong style="color:var(--text)">Mac:</strong> Open the URL in Safari → File → Add to Dock<br>
+      <strong style="color:var(--text)">iPhone:</strong> Open in Safari → Share → Add to Home Screen<br>
+      <strong style="color:var(--text)">New computer:</strong> Just open the URL — all data is already there
+    </div>
+  </div>
+  <div class="card" style="border-color:var(--amber)">
+    <div class="card-title">🛠️ Making changes to the app</div>
+    <p style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:10px">To update the app code, go to <strong style="color:var(--text)">claude.ai</strong>, describe what you want changed, and Claude will give you updated code. Then paste it into your GitHub repository — the app updates automatically.</p>
+    <div style="padding:10px 14px;background:#1a1200;border:1px solid var(--amber);border-radius:8px;font-size:12px;color:#fde68a;line-height:1.6">
+      ⚠️ Your data is safe in Supabase — changing the app code never touches your data.
+    </div>
+  </div>`;
+  // Try to show actual URL
+  if(window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1'){
+    document.getElementById('app-url-display').textContent=window.location.href.split('?')[0];
+  }
+}
+
+async function saveSettings(){
+  setSyncing(true);
+  const updates={
+    name:document.getElementById('s-name').value.trim()||activeSeason.name,
+    total_weeks:parseInt(document.getElementById('s-weeks').value)||activeSeason.total_weeks,
+    entry_fee:parseFloat(document.getElementById('s-entry').value)||activeSeason.entry_fee,
+    weekly_payout:parseFloat(document.getElementById('s-weekly').value)||activeSeason.weekly_payout,
+    champion_payout:parseFloat(document.getElementById('s-champ').value)||activeSeason.champion_payout,
+    second_payout:parseFloat(document.getElementById('s-second').value)||activeSeason.second_payout,
+    third_payout:parseFloat(document.getElementById('s-third').value)||activeSeason.third_payout,
+  };
+  const {error}=await sb.from('seasons').update(updates).eq('id',activeSeason.id);
+  if(error){showToast('Save failed: '+error.message,'error');}
+  else{Object.assign(activeSeason,updates);seasons=seasons.map(s=>s.id===activeSeason.id?{...activeSeason}:s);renderSeasonBar();showToast('Settings saved','success');}
+  setSyncing(false);
+  renderSettings();
+}
+
+// ── MODALS ───────────────────────────────────────────────────────────────────
+function showOverlay(html){const ov=document.getElementById('overlay');ov.style.display='flex';ov.innerHTML=`<div class="modal">${html}</div>`;ov.onclick=e=>{if(e.target===ov)closeOverlay();};}
+function closeOverlay(){const ov=document.getElementById('overlay');ov.style.display='none';ov.innerHTML='';}
+
+function teamSelectOpts(){return teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');}
+function methodOpts(sel='Venmo'){return ['Venmo','PayPal','Cash'].map(m=>`<option${m===sel?' selected':''}>${m}</option>`).join('');}
+
+async function openTeamModal(teamId){
+  const t=gtb(teamId);if(!t)return;
+  const wn=teamWinnings(t),pi=teamPaidIn(t),po=teamPaidOut(t),net=netOwed(t),wi=teamWeekWins(t);
+  const txs=transactions.filter(x=>x.team_id===teamId);
+  let pos='';
+  if(activeSeason.champion_team_id===teamId)pos+=`<span class="badge ba" style="margin-right:4px">🏆 Champion — ${fm(activeSeason.champion_payout)}</span>`;
+  if(activeSeason.second_team_id===teamId)  pos+=`<span class="badge bb" style="margin-right:4px">2nd — ${fm(activeSeason.second_payout)}</span>`;
+  if(activeSeason.third_team_id===teamId)   pos+=`<span class="badge bp">3rd — ${fm(activeSeason.third_payout)}</span>`;
+  const txRows=txs.map(tx=>{
+    const mc=tx.method==='Cash'?'tag-cash':tx.method==='PayPal'?'tag-paypal':'tag-venmo';
+    return `<tr><td style="white-space:nowrap;color:var(--text3);font-size:12px">${fd(tx.tx_date)}</td>
+      <td>${tx.type==='in'?`<span style="color:var(--green);font-weight:700">+${fm(tx.amount)}</span>`:`<span style="color:var(--red);font-weight:700">−${fm(tx.amount)}</span>`}</td>
+      <td><span class="tag ${mc}">${tx.method}</span></td>
+      <td style="color:var(--text3);font-size:12px">${esc(tx.note)}</td></tr>`;
+  }).join('');
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">${av(t,44)}
+      <div style="flex:1"><div style="font-size:18px;font-weight:600">${esc(t.name)}</div>
+      <div style="font-size:13px;color:var(--text3)">${esc(t.owner1)}${t.owner2?' & '+esc(t.owner2):''}</div></div>
+      <button class="btn btn-sm" onclick="closeOverlay();openEditTeamModal('${teamId}')">✏️ Edit</button></div>
+    ${pos?`<div style="margin-bottom:12px">${pos}</div>`:''}
+    <div class="g3" style="margin-bottom:10px">
+      <div class="metric"><div class="mlabel">Paid in</div><div style="font-size:18px;font-weight:700;color:var(--green)">${fm(pi)}</div></div>
+      <div class="metric"><div class="mlabel">Winnings</div><div style="font-size:18px;font-weight:700;color:#818cf8">${fm(wn)}</div></div>
+      <div class="metric"><div class="mlabel">Week wins</div><div style="font-size:18px;font-weight:700">${wi}</div></div>
+    </div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="metric"><div class="mlabel">Paid out</div><div style="font-size:18px;font-weight:700;color:var(--red)">${fm(po)}</div></div>
+      <div class="metric"><div class="mlabel">Net status</div><div style="font-size:18px;font-weight:700;color:${net>0?'var(--red)':net<0?'var(--green)':'var(--text3)'}">${net>0?'Owes '+fm(net):net<0?'Credit '+fm(-net):'Settled'}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-primary" onclick="closeOverlay();openPayInModal('${teamId}')" style="flex:1">Record payment in</button>
+      <button class="btn" onclick="closeOverlay();openPayOutModal('${teamId}')" style="flex:1">Record payout out</button>
+    </div>
+    <div class="sep"></div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:10px">Transaction history</div>
+    ${txRows?`<table><thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Notes</th></tr></thead><tbody>${txRows}</tbody></table>`
+            :`<p style="color:var(--text3);font-size:13px">No transactions yet</p>`}`);
+}
+
+function openAddTeamModal(){
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Add new team</div>
+    <div class="fg"><label>Team name</label><input id="nt-name" placeholder="e.g. Touchdown Titans"></div>
+    <div class="fg"><label>Owner 1</label><input id="nt-o1" placeholder="First Last"></div>
+    <div class="fg"><label>Owner 2 (optional)</label><input id="nt-o2" placeholder="First Last"></div>
+    <button class="btn btn-primary" onclick="submitAddTeam()" style="width:100%;margin-top:4px">Add team</button>`);
+}
+
+async function submitAddTeam(){
+  const name=document.getElementById('nt-name').value.trim();
+  const o1=document.getElementById('nt-o1').value.trim();
+  const o2=document.getElementById('nt-o2').value.trim();
+  if(!name||!o1){alert('Team name and owner required');return;}
+  setSyncing(true);
+  const {error}=await sb.from('teams').insert({season_id:activeSeason.id,name,owner1:o1,owner2:o2||null});
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast('Team added','success');closeOverlay();await loadSeasonData(activeSeason.id);renderTeams();}
+  setSyncing(false);
+}
+
+function openEditTeamModal(teamId){
+  const t=gtb(teamId);if(!t)return;
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Edit team</div>
+    <div class="fg"><label>Team name</label><input id="et-name" value="${esc(t.name)}"></div>
+    <div class="fg"><label>Owner 1</label><input id="et-o1" value="${esc(t.owner1)}"></div>
+    <div class="fg"><label>Owner 2 (optional)</label><input id="et-o2" value="${esc(t.owner2||'')}"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="submitEditTeam('${teamId}')" style="flex:1">Save changes</button>
+      <button class="btn" onclick="closeOverlay();openTeamModal('${teamId}')" style="flex:1">Cancel</button></div>`);
+}
+
+async function submitEditTeam(teamId){
+  const name=document.getElementById('et-name').value.trim();
+  const o1=document.getElementById('et-o1').value.trim();
+  const o2=document.getElementById('et-o2').value.trim();
+  if(!name||!o1){alert('Name and owner required');return;}
+  setSyncing(true);
+  const {error}=await sb.from('teams').update({name,owner1:o1,owner2:o2||null}).eq('id',teamId);
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast('Team updated','success');closeOverlay();await loadSeasonData(activeSeason.id);renderTeams();}
+  setSyncing(false);
+}
+
+function openPayInModal(teamId){
+  const t=gtb(teamId);
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Record payment in — ${esc(t?.name)}</div>
+    <div class="fg"><label>Amount ($)</label><input id="m-amt" type="number" step="0.01" placeholder="0.00"></div>
+    <div class="fg"><label>Date</label><input id="m-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="fg"><label>Method</label><select id="m-meth">${methodOpts()}</select></div>
+    <div class="fg"><label>Notes</label><input id="m-note" placeholder="e.g. Week 1 entry fee"></div>
+    <button class="btn btn-primary" onclick="submitTx('${teamId}','in')" style="width:100%">Save payment</button>`);
+}
+
+function openPayOutModal(teamId){
+  const t=gtb(teamId);
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Record payout out — ${esc(t?.name)}</div>
+    <div class="fg"><label>Amount ($)</label><input id="m-amt" type="number" step="0.01" placeholder="0.00"></div>
+    <div class="fg"><label>Date</label><input id="m-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="fg"><label>Method</label><select id="m-meth">${methodOpts()}</select></div>
+    <div class="fg"><label>Notes</label><input id="m-note" placeholder="e.g. Week 5 winnings"></div>
+    <button class="btn btn-primary" onclick="submitTx('${teamId}','out')" style="width:100%">Save payout</button>`);
+}
+
+async function submitTx(teamId,type){
+  const amt=parseFloat(document.getElementById('m-amt').value);
+  if(!amt||amt<=0){alert('Enter a valid amount');return;}
+  setSyncing(true);
+  const {error}=await sb.from('transactions').insert({
+    season_id:activeSeason.id,team_id:teamId,type,amount:amt,
+    method:document.getElementById('m-meth').value,
+    note:document.getElementById('m-note').value||'',
+    tx_date:document.getElementById('m-date').value
+  });
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast(type==='in'?'Payment recorded':'Payout recorded','success');closeOverlay();await loadSeasonData(activeSeason.id);tabRenders[currentTab]();}
+  setSyncing(false);
+}
+
+function openAddTxModal(){
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Add transaction</div>
+    <div class="fg"><label>Team</label><select id="tx-t">${teamSelectOpts()}</select></div>
+    <div class="fg"><label>Type</label><select id="tx-type"><option value="in">Payment in (from team)</option><option value="out">Payout out (to team)</option></select></div>
+    <div class="fg"><label>Amount ($)</label><input id="tx-amt" type="number" step="0.01" placeholder="0.00"></div>
+    <div class="fg"><label>Date</label><input id="tx-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="fg"><label>Method</label><select id="tx-meth">${methodOpts()}</select></div>
+    <div class="fg"><label>Notes</label><input id="tx-note" placeholder="Notes..."></div>
+    <button class="btn btn-primary" onclick="submitAddTx()" style="width:100%">Save</button>`);
+}
+
+async function submitAddTx(){
+  const amt=parseFloat(document.getElementById('tx-amt').value);
+  if(!amt||amt<=0){alert('Enter a valid amount');return;}
+  setSyncing(true);
+  const {error}=await sb.from('transactions').insert({
+    season_id:activeSeason.id,team_id:document.getElementById('tx-t').value,
+    type:document.getElementById('tx-type').value,amount:amt,
+    method:document.getElementById('tx-meth').value,
+    note:document.getElementById('tx-note').value||'',
+    tx_date:document.getElementById('tx-date').value
+  });
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast('Transaction saved','success');closeOverlay();await loadSeasonData(activeSeason.id);renderTx();}
+  setSyncing(false);
+}
+
+// ── Vote modals ──────────────────────────────────────────────────────────────
+function openNewVoteModal(){
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Create new vote</div>
+    <div class="fg"><label>Question / proposal</label><input id="nv-q" placeholder="e.g. Should we add a trade deadline?"></div>
+    <div class="fg"><label>Description (optional)</label><input id="nv-desc" placeholder="Extra context for the league"></div>
+    <div class="fg"><label>Category (optional)</label><input id="nv-cat" placeholder="e.g. Rule change, Draft, Payouts"></div>
+    <div class="fg"><label>Answer options (one per line)</label><textarea id="nv-opts" rows="4" style="resize:vertical">Yes\nNo</textarea></div>
+    <button class="btn btn-primary" onclick="submitNewVote()" style="width:100%;margin-top:4px">Create vote</button>`);
+}
+
+async function submitNewVote(){
+  const q=document.getElementById('nv-q').value.trim();
+  const opts=document.getElementById('nv-opts').value.split('\n').map(o=>o.trim()).filter(Boolean);
+  if(!q){alert('Please enter a question');return;}
+  if(opts.length<2){alert('Please enter at least 2 options');return;}
+  setSyncing(true);
+  const {error}=await sb.from('votes').insert({season_id:activeSeason.id,question:q,description:document.getElementById('nv-desc').value.trim(),category:document.getElementById('nv-cat').value.trim(),options:opts,closed:false});
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast('Vote created','success');closeOverlay();await loadSeasonData(activeSeason.id);renderVotes();}
+  setSyncing(false);
+}
+
+function openEditVoteModal(voteId){
+  const v=votes.find(x=>x.id===voteId);if(!v)return;
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Edit vote</div>
+    <div class="fg"><label>Question</label><input id="ev-q" value="${esc(v.question)}"></div>
+    <div class="fg"><label>Description</label><input id="ev-desc" value="${esc(v.description||'')}"></div>
+    <div class="fg"><label>Category</label><input id="ev-cat" value="${esc(v.category||'')}"></div>
+    <div class="fg"><label>Answer options (one per line)</label><textarea id="ev-opts" rows="4" style="resize:vertical">${(v.options||[]).map(esc).join('\n')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="submitEditVote('${voteId}')" style="flex:1">Save changes</button>
+      <button class="btn" onclick="closeOverlay()" style="flex:1">Cancel</button></div>`);
+}
+
+async function submitEditVote(voteId){
+  const q=document.getElementById('ev-q').value.trim();
+  const opts=document.getElementById('ev-opts').value.split('\n').map(o=>o.trim()).filter(Boolean);
+  if(!q||opts.length<2){alert('Question and at least 2 options required');return;}
+  setSyncing(true);
+  const {error}=await sb.from('votes').update({question:q,description:document.getElementById('ev-desc').value.trim(),category:document.getElementById('ev-cat').value.trim(),options:opts}).eq('id',voteId);
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast('Vote updated','success');closeOverlay();await loadSeasonData(activeSeason.id);renderVotes();}
+  setSyncing(false);
+}
+
+function openRecordVoteModal(voteId){
+  const v=votes.find(x=>x.id===voteId);if(!v)return;
+  const opts=(v.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  const teamOpts=teams.map(t=>{
+    const resp=voteResponses.find(r=>r.vote_id===voteId&&r.team_id===t.id);
+    return `<option value="${t.id}">${esc(t.name)}${resp?' ✓ ('+esc(resp.answer)+')':''}</option>`;
+  }).join('');
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Record vote</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.5">${esc(v.question)}</p>
+    <div class="fg"><label>Team</label><select id="rv-team">${teamOpts}</select></div>
+    <div class="fg"><label>Their answer</label><select id="rv-ans"><option value="">— pick answer —</option>${opts}</select></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="submitRecordVote('${voteId}')" style="flex:1">Save vote</button>
+      <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="clearTeamVote('${voteId}')" style="flex:1">Clear vote</button></div>`);
+}
+
+async function submitRecordVote(voteId){
+  const teamId=document.getElementById('rv-team').value;
+  const answer=document.getElementById('rv-ans').value;
+  if(!answer){alert('Please select an answer');return;}
+  setSyncing(true);
+  const {error}=await sb.from('vote_responses').upsert({vote_id:voteId,team_id:teamId,answer},{onConflict:'vote_id,team_id'});
+  if(error){showToast('Error: '+error.message,'error');}
+  else{showToast('Vote recorded','success');closeOverlay();await loadSeasonData(activeSeason.id);renderVotes();}
+  setSyncing(false);
+}
+
+async function clearTeamVote(voteId){
+  const teamId=document.getElementById('rv-team').value;
+  setSyncing(true);
+  await sb.from('vote_responses').delete().eq('vote_id',voteId).eq('team_id',teamId);
+  showToast('Vote cleared');closeOverlay();await loadSeasonData(activeSeason.id);renderVotes();
+  setSyncing(false);
+}
+
+async function toggleVoteClosed(voteId,closed){
+  setSyncing(true);
+  await sb.from('votes').update({closed}).eq('id',voteId);
+  await loadSeasonData(activeSeason.id);renderVotes();
+  setSyncing(false);
+  showToast(closed?'Vote closed':'Vote reopened');
+}
+
+async function deleteVote(voteId){
+  if(!confirm('Delete this vote permanently?'))return;
+  setSyncing(true);
+  await sb.from('votes').delete().eq('id',voteId);
+  await loadSeasonData(activeSeason.id);renderVotes();
+  setSyncing(false);
+  showToast('Vote deleted');
+}
+
+// ── New season modal ─────────────────────────────────────────────────────────
+function openNewSeasonModal(){
+  const last=activeSeason;
+  function nextName(n){
+    const m=n.match(/(\d{4})-(\d{4})/);
+    if(m)return n.replace(m[0],(parseInt(m[1])+1)+'-'+(parseInt(m[2])+1));
+    const m2=n.match(/(\d{4})/);
+    if(m2)return n.replace(m2[0],parseInt(m2[1])+1);
+    return n+' (New)';
+  }
+  const suggested=last?nextName(last.name):'Fantasy League 2025';
+  const teamChecks=last?teams.map(t=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer"><input type="checkbox" value="${t.id}" checked style="width:auto"> ${esc(t.name)} <span style="color:var(--text3);font-size:11px">(${esc(t.owner1)}${t.owner2?' & '+esc(t.owner2):''})</span></label>`).join(''):'';
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Create new season</div>
+    <div class="fg"><label>Season name</label><input id="ns-name" value="${esc(suggested)}"></div>
+    ${last&&teams.length?`<div class="fg"><label style="margin-bottom:8px;display:block">Carry over teams from "${esc(last.name)}"</label>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;max-height:180px;overflow-y:auto">${teamChecks}</div>
+      <p style="font-size:11px;color:var(--text3);margin-top:6px">Unchecked teams won't appear in the new season.</p></div>`:''}
+    <div class="fr"><div class="fg"><label>Entry fee ($)</label><input id="ns-fee" type="number" value="${last?.entry_fee||50}"></div>
+    <div class="fg"><label>Weekly payout ($)</label><input id="ns-weekly" type="number" value="${last?.weekly_payout||10}"></div></div>
+    <div class="fr"><div class="fg"><label>Champion payout ($)</label><input id="ns-champ" type="number" value="${last?.champion_payout||150}"></div>
+    <div class="fg"><label>2nd place ($)</label><input id="ns-second" type="number" value="${last?.second_payout||80}"></div></div>
+    <div class="fr"><div class="fg"><label>3rd place ($)</label><input id="ns-third" type="number" value="${last?.third_payout||40}"></div>
+    <div class="fg"><label>Total weeks</label><input id="ns-weeks" type="number" value="${last?.total_weeks||14}"></div></div>
+    <button class="btn btn-primary" onclick="submitNewSeason()" style="width:100%;margin-top:4px">Create season</button>`);
+}
+
+async function submitNewSeason(){
+  const name=document.getElementById('ns-name').value.trim();
+  if(!name){alert('Please enter a season name');return;}
+  setSyncing(true);
+  const {data:newSeason,error}=await sb.from('seasons').insert({
+    name,entry_fee:parseFloat(document.getElementById('ns-fee').value)||50,
+    weekly_payout:parseFloat(document.getElementById('ns-weekly').value)||10,
+    champion_payout:parseFloat(document.getElementById('ns-champ').value)||150,
+    second_payout:parseFloat(document.getElementById('ns-second').value)||80,
+    third_payout:parseFloat(document.getElementById('ns-third').value)||40,
+    total_weeks:parseInt(document.getElementById('ns-weeks').value)||14
+  }).select().single();
+  if(error){showToast('Error: '+error.message,'error');setSyncing(false);return;}
+  // Carry over selected teams
+  const checked=Array.from(document.querySelectorAll('#overlay input[type=checkbox]:checked')).map(cb=>cb.value);
+  const carryTeams=teams.filter(t=>checked.includes(t.id));
+  if(carryTeams.length){
+    await sb.from('teams').insert(carryTeams.map(t=>({season_id:newSeason.id,name:t.name,owner1:t.owner1,owner2:t.owner2||null})));
+  }
+  await loadSeasons();
+  activeSeason=seasons.find(s=>s.id===newSeason.id)||newSeason;
+  await loadSeasonData(activeSeason.id);
+  closeOverlay();renderSeasonBar();showTab('dashboard');
+  showToast(`Season "${name}" created!`,'success');
+  setSyncing(false);
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg,type=''){
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className='toast'+(type?' '+type:'');t.textContent=msg;
+  c.appendChild(t);setTimeout(()=>t.remove(),3500);
+}
+
+// ── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
