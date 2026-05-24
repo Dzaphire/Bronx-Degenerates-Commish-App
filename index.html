@@ -175,9 +175,22 @@ function teamWinnings(team){
   if(!activeSeason) return 0;
   let w=0;
   weekResults.forEach(r=>{if(r.winner_team_id===team.id)w+=Number(activeSeason.weekly_payout);});
-  if(activeSeason.champion_team_id===team.id) w+=Number(activeSeason.champion_payout);
-  if(activeSeason.second_team_id===team.id)   w+=Number(activeSeason.second_payout);
-  if(activeSeason.third_team_id===team.id)    w+=Number(activeSeason.third_payout);
+  // Championship payouts — use split amount if a split was agreed
+  if(activeSeason.champion_team_id===team.id){
+    w+=activeSeason.champion_split && Number(activeSeason.champion_split_amount)>0
+      ? Number(activeSeason.champion_split_amount)
+      : Number(activeSeason.champion_payout);
+  }
+  if(activeSeason.second_team_id===team.id){
+    w+=activeSeason.second_split && Number(activeSeason.second_split_amount)>0
+      ? Number(activeSeason.second_split_amount)
+      : Number(activeSeason.second_payout);
+  }
+  if(activeSeason.third_team_id===team.id){
+    w+=activeSeason.third_split && Number(activeSeason.third_split_amount)>0
+      ? Number(activeSeason.third_split_amount)
+      : Number(activeSeason.third_payout);
+  }
   return w;
 }
 function teamWeekWins(team){return weekResults.filter(r=>r.winner_team_id===team.id).length;}
@@ -337,14 +350,69 @@ function renderTeams(){
 function renderResults(){
   const el=document.getElementById('tab-results');
   const wkTotal=weekResults.length*Number(activeSeason.weekly_payout);
-  const endTotal=(activeSeason.champion_team_id?Number(activeSeason.champion_payout):0)
-               +(activeSeason.second_team_id?Number(activeSeason.second_payout):0)
-               +(activeSeason.third_team_id?Number(activeSeason.third_payout):0);
   const pool=teams.length*Number(activeSeason.entry_fee);
+
   function tOpts(val){
     return `<option value="">— pick team —</option>`+teams.map(t=>`<option value="${t.id}"${val===t.id?' selected':''}>${esc(t.name)}</option>`).join('');
   }
-  const ct=gtb(activeSeason.champion_team_id),st=gtb(activeSeason.second_team_id),tt=gtb(activeSeason.third_team_id);
+
+  // Effective payout per position (split overrides default if set)
+  function effectivePayout(splitFlag, splitAmt, defaultAmt){
+    return splitFlag && Number(splitAmt)>0 ? Number(splitAmt) : Number(defaultAmt);
+  }
+
+  const ct=gtb(activeSeason.champion_team_id);
+  const st=gtb(activeSeason.second_team_id);
+  const tt=gtb(activeSeason.third_team_id);
+
+  const champEff = effectivePayout(activeSeason.champion_split, activeSeason.champion_split_amount, activeSeason.champion_payout);
+  const secEff   = effectivePayout(activeSeason.second_split,   activeSeason.second_split_amount,   activeSeason.second_payout);
+  const thirdEff = effectivePayout(activeSeason.third_split,    activeSeason.third_split_amount,    activeSeason.third_payout);
+
+  const endTotal=(activeSeason.champion_team_id?champEff:0)
+               +(activeSeason.second_team_id?secEff:0)
+               +(activeSeason.third_team_id?thirdEff:0);
+
+  function standingCard(pos, label, color, teamId, defaultPayout, splitFlag, splitAmt, splitField, splitAmtField, teamIdField){
+    const team = gtb(teamId);
+    const isSplit = !!splitFlag;
+    const effAmt = effectivePayout(splitFlag, splitAmt, defaultPayout);
+    return `
+    <div class="metric" style="position:relative">
+      <div class="mlabel" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+        <span>${label}</span>
+        <span class="badge" style="background:#1e3a1e;color:#4ade80;font-size:10px">${fm(effAmt)}</span>
+      </div>
+      <select onchange="setStanding('${teamIdField}',this.value)" style="margin-top:8px;width:100%">${tOpts(teamId)}</select>
+      ${team?`<div style="font-size:13px;color:${color};font-weight:600;margin-top:6px">${esc(team.name)}</div>`:''}
+
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+          <input type="checkbox" id="split-${pos}" ${isSplit?'checked':''} style="width:auto;accent-color:var(--accent)"
+            onchange="toggleSplit('${pos}','${splitField}','${splitAmtField}',this.checked)">
+          <span style="font-size:12px;font-weight:600;color:${isSplit?'var(--accent2)':'var(--text3)'}">
+            ${isSplit?'✂️ Split agreed':'Mark as split'}
+          </span>
+        </label>
+        ${isSplit?`
+        <div style="margin-top:8px;background:#0f0f1a;border:1px solid var(--accent);border-radius:8px;padding:10px 12px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Agreed split amount for this team ($)</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="number" id="split-amt-${pos}" step="0.01" value="${splitAmt||defaultPayout}"
+              style="flex:1;font-size:13px" placeholder="0.00"
+              onchange="saveSplitAmount('${splitAmtField}',this.value)">
+            <span style="font-size:11px;color:var(--text3);white-space:nowrap">
+              Default: ${fm(defaultPayout)}
+            </span>
+          </div>
+          <div style="font-size:11px;color:var(--accent2);margin-top:6px">
+            💡 Enter only what this team actually receives
+          </div>
+        </div>`:``}
+      </div>
+    </div>`;
+  }
+
   const weeks=Array.from({length:activeSeason.total_weeks},(_,i)=>{
     const w=i+1,wr=weekResults.find(r=>r.week_number===w),wt=wr?gtb(wr.winner_team_id):null;
     return `<div class="week-row">
@@ -355,28 +423,59 @@ function renderResults(){
         ${tOpts(wr?.winner_team_id)}
       </select></div>`;
   }).join('');
+
   el.innerHTML=`
   <div class="card">
-    <div class="card-title">🏆 Season standings</div>
+    <div class="card-title">🏆 Season standings & payouts</div>
+    <div style="background:#111827;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text3);line-height:1.7">
+      <strong style="color:var(--text)">Split payouts:</strong>
+      If teams agreed to split before the game, check "Mark as split" and enter the custom amount each team actually receives.
+      The official standings (Champion, 2nd, 3rd) are still recorded for the record — only the payout amount changes.
+      All Money tab calculations update automatically.
+    </div>
     <div class="g3">
-      <div class="metric"><div class="mlabel">Champion <span class="badge ba">+${fm(activeSeason.champion_payout)}</span></div>
-        <select onchange="setStanding('champion_team_id',this.value)" style="margin-top:8px">${tOpts(activeSeason.champion_team_id)}</select>
-        ${ct?`<div style="font-size:13px;color:var(--green);font-weight:600;margin-top:5px">${esc(ct.name)}</div>`:''}</div>
-      <div class="metric"><div class="mlabel">2nd place <span class="badge bb">+${fm(activeSeason.second_payout)}</span></div>
-        <select onchange="setStanding('second_team_id',this.value)" style="margin-top:8px">${tOpts(activeSeason.second_team_id)}</select>
-        ${st?`<div style="font-size:13px;color:#60a5fa;font-weight:600;margin-top:5px">${esc(st.name)}</div>`:''}</div>
-      <div class="metric"><div class="mlabel">3rd place <span class="badge bp">+${fm(activeSeason.third_payout)}</span></div>
-        <select onchange="setStanding('third_team_id',this.value)" style="margin-top:8px">${tOpts(activeSeason.third_team_id)}</select>
-        ${tt?`<div style="font-size:13px;color:#a78bfa;font-weight:600;margin-top:5px">${esc(tt.name)}</div>`:''}</div>
+      ${standingCard('champ','🏆 Champion','var(--green)',
+        activeSeason.champion_team_id, activeSeason.champion_payout,
+        activeSeason.champion_split, activeSeason.champion_split_amount,
+        'champion_split','champion_split_amount','champion_team_id')}
+      ${standingCard('second','🥈 2nd place','#60a5fa',
+        activeSeason.second_team_id, activeSeason.second_payout,
+        activeSeason.second_split, activeSeason.second_split_amount,
+        'second_split','second_split_amount','second_team_id')}
+      ${standingCard('third','🥉 3rd place','#a78bfa',
+        activeSeason.third_team_id, activeSeason.third_payout,
+        activeSeason.third_split, activeSeason.third_split_amount,
+        'third_split','third_split_amount','third_team_id')}
     </div></div>
   <div class="card"><div class="card-title">Pool math</div>
     <div class="g4">
       <div class="metric"><div class="mlabel">Total pool</div><div class="mval">${fm(pool)}</div></div>
       <div class="metric"><div class="mlabel">Weekly payouts</div><div class="mval" style="color:var(--red)">${fm(wkTotal)}</div></div>
-      <div class="metric"><div class="mlabel">Season-end</div><div class="mval" style="color:var(--red)">${fm(endTotal)}</div></div>
+      <div class="metric"><div class="mlabel">Season-end payouts</div><div class="mval" style="color:var(--red)">${fm(endTotal)}</div></div>
       <div class="metric"><div class="mlabel">Remaining</div><div class="mval" style="color:#60a5fa">${fm(pool-wkTotal-endTotal)}</div></div>
     </div></div>
   <div class="card"><div class="card-title">Weekly results — ${weekResults.length} of ${activeSeason.total_weeks} set</div>${weeks}</div>`;
+}
+
+async function toggleSplit(pos, splitField, splitAmtField, isChecked){
+  setSyncing(true);
+  const defaultAmts = {champion_split_amount: activeSeason.champion_payout, second_split_amount: activeSeason.second_payout, third_split_amount: activeSeason.third_payout};
+  const updates = {[splitField]: isChecked, [splitAmtField]: isChecked ? (activeSeason[splitAmtField]||defaultAmts[splitAmtField]) : null};
+  await sb.from('seasons').update(updates).eq('id', activeSeason.id);
+  Object.assign(activeSeason, updates);
+  seasons = seasons.map(s=>s.id===activeSeason.id?{...activeSeason}:s);
+  setSyncing(false);
+  renderResults();
+}
+
+async function saveSplitAmount(splitAmtField, value){
+  const amt = parseFloat(value);
+  if(isNaN(amt)||amt<0) return;
+  setSyncing(true);
+  await sb.from('seasons').update({[splitAmtField]: amt}).eq('id', activeSeason.id);
+  activeSeason[splitAmtField] = amt;
+  seasons = seasons.map(s=>s.id===activeSeason.id?{...activeSeason}:s);
+  setSyncing(false);
 }
 
 async function setWeekWinner(week,teamId){
