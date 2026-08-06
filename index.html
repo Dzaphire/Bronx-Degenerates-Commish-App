@@ -1139,20 +1139,46 @@ function openNewSeasonModal(){
     return n+' (New)';
   }
   const suggested=last?nextName(last.name):'Fantasy League 2025';
-  const teamChecks=last?teams.map(t=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer"><input type="checkbox" value="${t.id}" checked style="width:auto"> ${esc(t.name)} <span style="color:var(--text3);font-size:11px">(${esc(t.owner1)}${t.owner2?' & '+esc(t.owner2):''})</span></label>`).join(''):'';
-  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
-    <div class="modal-title">Create new season</div>
-    <div class="fg"><label>Season name</label><input id="ns-name" value="${esc(suggested)}"></div>
-    ${last&&teams.length?`<div class="fg"><label style="margin-bottom:8px;display:block">Carry over teams from "${esc(last.name)}"</label>
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;max-height:180px;overflow-y:auto">${teamChecks}</div>
-      <p style="font-size:11px;color:var(--text3);margin-top:6px">Unchecked teams won't appear in the new season.</p></div>`:''}
-    <div class="fr"><div class="fg"><label>Entry fee ($)</label><input id="ns-fee" type="number" value="${last?.entry_fee||50}"></div>
-    <div class="fg"><label>Weekly payout ($)</label><input id="ns-weekly" type="number" value="${last?.weekly_payout||10}"></div></div>
-    <div class="fr"><div class="fg"><label>Champion payout ($)</label><input id="ns-champ" type="number" value="${last?.champion_payout||150}"></div>
-    <div class="fg"><label>2nd place ($)</label><input id="ns-second" type="number" value="${last?.second_payout||80}"></div></div>
-    <div class="fr"><div class="fg"><label>3rd place ($)</label><input id="ns-third" type="number" value="${last?.third_payout||40}"></div>
-    <div class="fg"><label>Total weeks</label><input id="ns-weeks" type="number" value="${last?.total_weeks||14}"></div></div>
-    <button class="btn btn-primary" onclick="submitNewSeason()" style="width:100%;margin-top:4px">Create season</button>`);
+  // Build team checkboxes safely using DOM instead of HTML strings to avoid quote/apostrophe issues
+  const teamChecks=last?teams.map(t=>{
+    const owners=t.owner1+(t.owner2?' & '+t.owner2:'');
+    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">`
+      +`<input type="checkbox" value="${t.id}" checked style="width:auto"> `
+      +`<span>${t.name}</span> `
+      +`<span style="color:var(--text3);font-size:11px">(${owners})</span></label>`;
+  }).join(''):'';
+  const carrySection = (last && teams.length)
+    ? '<div class="fg"><label style="margin-bottom:8px;display:block">Carry over teams from previous season</label>'
+      + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;max-height:180px;overflow-y:auto">'
+      + teamChecks
+      + '</div><p style="font-size:11px;color:var(--text3);margin-top:6px">Unchecked teams won\'t appear in the new season.</p></div>'
+    : '';
+
+  showOverlay(
+    '<button class="close-x" onclick="closeOverlay()">×</button>'
+    + '<div class="modal-title">Create new season</div>'
+    + '<div class="fg"><label>Season name</label><input id="ns-name" placeholder="e.g. Bronx Degenerates 2026-2027"></div>'
+    + carrySection
+    + '<div class="fr">'
+    + '<div class="fg"><label>Entry fee ($)</label><input id="ns-fee" type="number" value="' + (last?.entry_fee||50) + '"></div>'
+    + '<div class="fg"><label>Weekly payout ($)</label><input id="ns-weekly" type="number" value="' + (last?.weekly_payout||10) + '"></div>'
+    + '</div>'
+    + '<div class="fr">'
+    + '<div class="fg"><label>Champion payout ($)</label><input id="ns-champ" type="number" value="' + (last?.champion_payout||150) + '"></div>'
+    + '<div class="fg"><label>2nd place ($)</label><input id="ns-second" type="number" value="' + (last?.second_payout||80) + '"></div>'
+    + '</div>'
+    + '<div class="fr">'
+    + '<div class="fg"><label>3rd place ($)</label><input id="ns-third" type="number" value="' + (last?.third_payout||40) + '"></div>'
+    + '<div class="fg"><label>Total weeks</label><input id="ns-weeks" type="number" value="' + (last?.total_weeks||14) + '"></div>'
+    + '</div>'
+    + '<button class="btn btn-primary" onclick="submitNewSeason()" style="width:100%;margin-top:4px">Create season</button>'
+  );
+
+  // Set the suggested name after the overlay renders (avoids HTML encoding issues)
+  setTimeout(()=>{
+    const inp = document.getElementById('ns-name');
+    if(inp) inp.value = suggested;
+  }, 10);
 }
 
 async function submitNewSeason(){
