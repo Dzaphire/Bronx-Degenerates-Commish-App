@@ -22,10 +22,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .topbar-right{display:flex;gap:8px;align-items:center;margin-left:auto;padding-left:12px;flex-shrink:0}
 .season-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .season-bar::-webkit-scrollbar{display:none}
-.season-chip{padding:5px 14px;font-size:12px;font-weight:600;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--text3);cursor:pointer;white-space:nowrap;flex-shrink:0}
-.season-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.season-chip:hover:not(.active){background:var(--bg3);color:var(--text)}
-.season-add-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:20px;border:1px dashed var(--border2);background:none;color:var(--text3);cursor:pointer;flex-shrink:0;white-space:nowrap}
+.season-select{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--accent2);cursor:pointer;outline:none;max-width:260px}
+.season-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.season-add-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:8px;border:1px dashed var(--border2);background:none;color:var(--text3);cursor:pointer;white-space:nowrap}
 .season-add-btn:hover{border-color:var(--accent2);color:var(--accent2)}
 .content{max-width:1100px;margin:0 auto;padding:20px}
 .card{background:var(--bg2);border-radius:12px;border:1px solid var(--border);padding:18px 20px;margin-bottom:14px}
@@ -59,8 +58,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
 .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px}
 .tag-venmo{background:#dbeafe;color:#1d4ed8}.tag-paypal{background:#f5f3ff;color:#6d28d9}.tag-cash{background:#f0fdf4;color:#15803d}
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
-.modal{background:var(--bg2);border-radius:16px;padding:22px;width:min(520px,100%);max-height:88vh;overflow-y:auto;position:relative;border:1px solid var(--border2)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:stretch;justify-content:flex-end}
+.modal{background:var(--bg2);border-radius:16px 0 0 16px;padding:22px;width:min(480px,100%);max-height:100vh;overflow-y:auto;position:relative;border-left:1px solid var(--border2);border-top:none;border-bottom:none;border-right:none;animation:slideInRight .2s ease}
+@keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(max-width:600px){.overlay{align-items:flex-end;justify-content:stretch}.modal{border-radius:16px 16px 0 0;width:100%;max-height:88vh;border:1px solid var(--border2);border-bottom:none;animation:slideInUp .2s ease}@keyframes slideInUp{from{transform:translateY(100%)}to{transform:translateY(0)}}}
 .modal-title{font-size:17px;font-weight:600;margin-bottom:16px}
 .close-x{position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text3);line-height:1;padding:4px}
 .close-x:hover{color:var(--text)}
@@ -233,10 +234,11 @@ async function loadSeasonData(seasonId){
 }
 
 async function loadSeasons(){
-  const {data,error}=await sb.from('seasons').select('*').order('created_at');
+  const {data,error}=await sb.from('seasons').select('*').order('created_at',{ascending:false});
   if(error){showToast('Could not load seasons: '+error.message,'error');return;}
   seasons=data||[];
-  if(seasons.length>0 && !activeSeason) activeSeason=seasons[0];
+  // Always default to the most recent season (first in descending order)
+  if(seasons.length>0) activeSeason=seasons[0];
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -256,8 +258,12 @@ async function init(){
 // ── Season bar ───────────────────────────────────────────────────────────────
 function renderSeasonBar(){
   const bar=document.getElementById('season-bar');
-  const chips=seasons.map(s=>`<button class="season-chip${s.id===activeSeason?.id?' active':''}" onclick="switchSeason('${s.id}')">${esc(s.name)}</button>`).join('');
-  bar.innerHTML=chips+`<button class="season-add-btn" onclick="openNewSeasonModal()">+ New season</button>`;
+  // Sort newest first (by created_at descending)
+  const sorted=[...seasons].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const opts=sorted.map(s=>`<option value="${s.id}"${s.id===activeSeason?.id?' selected':''}>${esc(s.name)}</option>`).join('');
+  bar.innerHTML=`<span style="font-size:12px;font-weight:500;color:var(--text3);flex-shrink:0">Season</span>`
+    +`<select class="season-select" onchange="switchSeason(this.value)" aria-label="Select season">${opts}</select>`
+    +`<button class="season-add-btn" onclick="openNewSeasonModal()">+ New season</button>`;
 }
 
 async function switchSeason(id){
@@ -872,7 +878,10 @@ async function saveSettings(){
 }
 
 // ── MODALS ───────────────────────────────────────────────────────────────────
-function showOverlay(html){const ov=document.getElementById('overlay');ov.style.display='flex';ov.innerHTML=`<div class="modal">${html}</div>`;ov.onclick=e=>{if(e.target===ov)closeOverlay();};}
+function showOverlay(html){const ov=document.getElementById('overlay');ov.style.display='flex';ov.innerHTML=`<div class="modal">${html}</div>`;ov.onclick=e=>{if(e.target===ov)closeOverlay();};
+  // Prevent panel itself from closing when clicked inside
+  ov.querySelector('.modal').onclick=e=>e.stopPropagation();
+}
 function closeOverlay(){const ov=document.getElementById('overlay');ov.style.display='none';ov.innerHTML='';}
 
 function teamSelectOpts(){return teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');}
