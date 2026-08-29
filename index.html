@@ -94,6 +94,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .login-error{font-size:13px;color:var(--red);min-height:20px;margin-top:4px}
 .login-hint{font-size:11px;color:var(--text3);margin-top:16px;line-height:1.6}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+.rules-sidebar{width:200px;flex-shrink:0;padding-right:16px;border-right:1px solid var(--border)}
+.rules-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px}
+.rules-sidebar-item:hover{background:var(--bg3)}
+.rules-sidebar-item.active{background:#1e1b4b;color:var(--accent2)}
+.rules-main{flex:1;padding-left:20px;min-width:0}
+.rule-item-row{padding:12px 14px;border-bottom:1px solid var(--border)}
+.rule-item-row:last-child{border-bottom:none}
+.rule-item-row:hover{background:var(--bg)}
 </style>
 </head>
 <body>
@@ -119,6 +128,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
     <button class="nav-btn" onclick="showTab('results')">Results</button>
     <button class="nav-btn" onclick="showTab('money')">Money</button>
     <button class="nav-btn" onclick="showTab('transactions')">Transactions</button>
+    <button class="nav-btn" onclick="showTab('rules')">📋 Rules</button>
     <button class="nav-btn" onclick="showTab('votes')">🗳 Votes</button>
     <button class="nav-btn" onclick="showTab('settings')">Settings</button>
   </div>
@@ -137,6 +147,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   <div id="tab-results"     style="display:none"></div>
   <div id="tab-money"       style="display:none"></div>
   <div id="tab-transactions"style="display:none"></div>
+  <div id="tab-rules"       style="display:none"></div>
   <div id="tab-votes"       style="display:none"></div>
   <div id="tab-settings"    style="display:none"></div>
 </div>
@@ -154,7 +165,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 let seasons = [], activeSeason = null;
 let teams = [], weekResults = [], transactions = [], votes = [], voteResponses = [];
 let currentTab = 'dashboard';
-const tabOrder = ['dashboard','teams','results','money','transactions','votes','settings'];
+const tabOrder = ['dashboard','teams','results','money','transactions','rules','votes','settings'];
 
 // ── Avatar helpers ───────────────────────────────────────────────────────────
 const AV_BG  = ['#f5f3ff','#eff6ff','#f0fdf4','#fffbeb','#fff1f2','#f0fdfa'];
@@ -273,7 +284,7 @@ async function switchSeason(id){
 }
 
 // ── Tab routing ──────────────────────────────────────────────────────────────
-const tabRenders={dashboard:renderDash,teams:renderTeams,results:renderResults,money:renderMoney,transactions:renderTx,votes:renderVotes,settings:renderSettings};
+const tabRenders={dashboard:renderDash,teams:renderTeams,results:renderResults,money:renderMoney,transactions:renderTx,rules:renderRules,votes:renderVotes,settings:renderSettings};
 async function showTab(name, reload=false){
   if(!activeSeason && name!=='settings'){
     document.getElementById('tab-'+name).innerHTML=`<div class="empty-state"><div class="icon">🏈</div><h3>No season selected</h3><p>Create a season first.</p><button class="btn btn-primary" onclick="openNewSeasonModal()">+ Create season</button></div>`;
@@ -682,6 +693,212 @@ function renderTx(){
 }
 
 // ── VOTES ────────────────────────────────────────────────────────────────────
+
+// ── Rules ────────────────────────────────────────────────────────────────────
+let rulesData = [];
+let activeRuleSection = null;
+
+async function loadRulesData(){
+  const [sections, items] = await Promise.all([
+    sb.from('rule_sections').select('*').order('position'),
+    sb.from('rule_items').select('*').order('position'),
+  ]);
+  rulesData = (sections.data||[]).map(s=>({
+    ...s,
+    items:(items.data||[]).filter(i=>i.section_id===s.id)
+  }));
+  if(rulesData.length && !activeRuleSection) activeRuleSection=rulesData[0].id;
+}
+
+function renderRules(){
+  const el=document.getElementById('tab-rules');
+  el.innerHTML=`<div class="loading-screen"><div class="spinner"></div></div>`;
+  loadRulesData().then(()=>{
+    if(!rulesData.length){
+      el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>No rules yet</h3><p>Create your first rule section — e.g. Keeper rules, Scoring, Trades.</p><button class="btn btn-primary" onclick="openAddSectionModal()">+ Add first section</button></div>`;
+      return;
+    }
+    buildRulesUI(el);
+  });
+}
+
+function buildRulesUI(el){
+  const section=rulesData.find(s=>s.id===activeRuleSection)||rulesData[0];
+  activeRuleSection=section?.id||null;
+  const sidebarItems=rulesData.map(s=>`
+    <div class="rules-sidebar-item${s.id===activeRuleSection?' active':''}" onclick="activeRuleSection='${s.id}';buildRulesUI(document.getElementById('tab-rules'))">
+      <span style="font-size:16px">${s.emoji||'📋'}</span>
+      <span style="flex:1;font-size:13px;font-weight:${s.id===activeRuleSection?500:400}">${esc(s.title)}</span>
+      <span style="font-size:11px;color:var(--text3)">${s.items?.length||0}</span>
+    </div>`).join('');
+  const items=section?.items||[];
+  const ruleRows=items.map((item,i)=>`
+    <div class="rule-item-row">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:12px;font-weight:600;color:var(--accent2);min-width:22px;margin-top:2px">${i+1}.</span>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text);line-height:1.6">${esc(item.body)}</div>
+          ${item.note?`<div style="font-size:12px;color:var(--text3);margin-top:5px;padding:6px 10px;background:var(--bg);border-left:2px solid var(--border2);border-radius:0 4px 4px 0;line-height:1.6">${esc(item.note)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-sm" style="padding:3px 8px;font-size:11px" onclick="openEditRuleModal('${section.id}','${item.id}')">✏️</button>
+          <button class="btn btn-sm" style="padding:3px 8px;font-size:11px;color:var(--red);border-color:var(--red)" onclick="deleteRule('${section.id}','${item.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+  el.innerHTML=`
+  <div style="display:flex;gap:0;min-height:500px">
+    <div class="rules-sidebar">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding:0 4px">Sections</div>
+      ${sidebarItems}
+      <button class="btn btn-sm" style="width:100%;margin-top:10px;border-style:dashed;font-size:12px;color:var(--text3)" onclick="openAddSectionModal()">+ New section</button>
+    </div>
+    <div class="rules-main">
+      ${section?`
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:26px">${section.emoji||'📋'}</span>
+          <div>
+            <div style="font-size:17px;font-weight:600;color:var(--text)">${esc(section.title)}</div>
+            <div style="font-size:12px;color:var(--text3)">${items.length} rule${items.length!==1?'s':''}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="openEditSectionModal('${section.id}')">✏️ Edit section</button>
+          <button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteSection('${section.id}')">🗑 Delete</button>
+        </div>
+      </div>
+      ${section.description?`<div style="font-size:13px;color:var(--text3);margin-bottom:14px;line-height:1.6;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">${esc(section.description)}</div>`:''}
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">
+        ${items.length?`<div>${ruleRows}</div>`:`<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">No rules yet — add your first one below.</div>`}
+      </div>
+      <button class="btn btn-primary" onclick="openAddRuleModal('${section.id}')" style="width:100%">+ Add rule</button>
+      `:`<div class="empty-state"><div class="icon">📋</div><h3>Select a section</h3></div>`}
+    </div>
+  </div>`;
+}
+
+function openAddSectionModal(){
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Add rule section</div>
+    <div class="fg"><label>Section title</label><input id="rs-title" placeholder="e.g. Keeper rules"></div>
+    <div class="fg"><label>Emoji icon</label><input id="rs-emoji" placeholder="🔑" style="width:90px"></div>
+    <div class="fg"><label>Description (optional)</label><textarea id="rs-desc" rows="2" placeholder="Brief explanation of this rule section"></textarea></div>
+    <button class="btn btn-primary" onclick="submitAddSection()" style="width:100%;margin-top:4px">Create section</button>`);
+}
+
+async function submitAddSection(){
+  const title=document.getElementById('rs-title').value.trim();
+  if(!title){alert('Title required');return;}
+  setSyncing(true);
+  const {data,error}=await sb.from('rule_sections').insert({
+    title,
+    emoji:document.getElementById('rs-emoji').value.trim()||'📋',
+    description:document.getElementById('rs-desc').value.trim(),
+    position:rulesData.length
+  }).select().single();
+  if(error){showToast('Error: '+error.message,'error');}
+  else{activeRuleSection=data.id;closeOverlay();showToast('Section added','success');renderRules();}
+  setSyncing(false);
+}
+
+function openEditSectionModal(sectionId){
+  const s=rulesData.find(x=>x.id===sectionId);if(!s)return;
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Edit section</div>
+    <div class="fg"><label>Section title</label><input id="rs-title" value="${esc(s.title)}"></div>
+    <div class="fg"><label>Emoji icon</label><input id="rs-emoji" value="${esc(s.emoji||'📋')}" style="width:90px"></div>
+    <div class="fg"><label>Description (optional)</label><textarea id="rs-desc" rows="2">${esc(s.description||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="submitEditSection('${sectionId}')" style="flex:1">Save changes</button>
+      <button class="btn" onclick="closeOverlay()" style="flex:1">Cancel</button>
+    </div>`);
+}
+
+async function submitEditSection(sectionId){
+  const title=document.getElementById('rs-title').value.trim();
+  if(!title){alert('Title required');return;}
+  setSyncing(true);
+  const {error}=await sb.from('rule_sections').update({
+    title,
+    emoji:document.getElementById('rs-emoji').value.trim()||'📋',
+    description:document.getElementById('rs-desc').value.trim()
+  }).eq('id',sectionId);
+  if(error){showToast('Error: '+error.message,'error');}
+  else{closeOverlay();showToast('Section updated','success');renderRules();}
+  setSyncing(false);
+}
+
+async function deleteSection(sectionId){
+  const s=rulesData.find(x=>x.id===sectionId);
+  if(!confirm('Delete "'+( s?.title||'this section')+'" and all its rules? This cannot be undone.'))return;
+  setSyncing(true);
+  await sb.from('rule_sections').delete().eq('id',sectionId);
+  activeRuleSection=null;
+  showToast('Section deleted');renderRules();
+  setSyncing(false);
+}
+
+function openAddRuleModal(sectionId){
+  const s=rulesData.find(x=>x.id===sectionId);
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Add rule — ${esc(s?.title||'')}</div>
+    <div class="fg"><label>Rule text</label><textarea id="ri-body" rows="3" placeholder="Describe the rule clearly and completely"></textarea></div>
+    <div class="fg"><label>Sub-note or clarification (optional)</label><textarea id="ri-note" rows="2" placeholder="e.g. This only applies to playoff weeks"></textarea></div>
+    <button class="btn btn-primary" onclick="submitAddRule('${sectionId}')" style="width:100%;margin-top:4px">Add rule</button>`);
+}
+
+async function submitAddRule(sectionId){
+  const body=document.getElementById('ri-body').value.trim();
+  if(!body){alert('Rule text required');return;}
+  setSyncing(true);
+  const section=rulesData.find(s=>s.id===sectionId);
+  const {error}=await sb.from('rule_items').insert({
+    section_id:sectionId,
+    body,
+    note:document.getElementById('ri-note').value.trim(),
+    position:section?.items?.length||0
+  });
+  if(error){showToast('Error: '+error.message,'error');}
+  else{closeOverlay();showToast('Rule added','success');renderRules();}
+  setSyncing(false);
+}
+
+function openEditRuleModal(sectionId,itemId){
+  const section=rulesData.find(s=>s.id===sectionId);
+  const item=section?.items?.find(i=>i.id===itemId);
+  if(!item)return;
+  showOverlay(`<button class="close-x" onclick="closeOverlay()">×</button>
+    <div class="modal-title">Edit rule</div>
+    <div class="fg"><label>Rule text</label><textarea id="ri-body" rows="3">${esc(item.body)}</textarea></div>
+    <div class="fg"><label>Sub-note or clarification (optional)</label><textarea id="ri-note" rows="2">${esc(item.note||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="submitEditRule('${itemId}')" style="flex:1">Save changes</button>
+      <button class="btn" onclick="closeOverlay()" style="flex:1">Cancel</button>
+    </div>`);
+}
+
+async function submitEditRule(itemId){
+  const body=document.getElementById('ri-body').value.trim();
+  if(!body){alert('Rule text required');return;}
+  setSyncing(true);
+  const {error}=await sb.from('rule_items').update({
+    body,
+    note:document.getElementById('ri-note').value.trim()
+  }).eq('id',itemId);
+  if(error){showToast('Error: '+error.message,'error');}
+  else{closeOverlay();showToast('Rule updated','success');renderRules();}
+  setSyncing(false);
+}
+
+async function deleteRule(sectionId,itemId){
+  if(!confirm('Delete this rule?'))return;
+  setSyncing(true);
+  await sb.from('rule_items').delete().eq('id',itemId);
+  showToast('Rule deleted');renderRules();
+  setSyncing(false);
+}
+
 function renderVotes(){
   const el=document.getElementById('tab-votes');
   if(!votes.length){
