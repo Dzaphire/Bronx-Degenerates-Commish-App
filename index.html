@@ -58,10 +58,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
 .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px}
 .tag-venmo{background:#dbeafe;color:#1d4ed8}.tag-paypal{background:#f5f3ff;color:#6d28d9}.tag-cash{background:#f0fdf4;color:#15803d}
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:stretch;justify-content:flex-end}
-.modal{background:var(--bg2);border-radius:16px 0 0 16px;padding:22px;width:min(480px,100%);max-height:100vh;overflow-y:auto;position:relative;border-left:1px solid var(--border2);border-top:none;border-bottom:none;border-right:none;animation:slideInRight .2s ease}
-@keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@media(max-width:600px){.overlay{align-items:flex-end;justify-content:stretch}.modal{border-radius:16px 16px 0 0;width:100%;max-height:88vh;border:1px solid var(--border2);border-bottom:none;animation:slideInUp .2s ease}@keyframes slideInUp{from{transform:translateY(100%)}to{transform:translateY(0)}}}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:9998;display:flex;align-items:stretch;justify-content:flex-end}
+.modal{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);height:100%;background:var(--bg2);border-left:1px solid var(--border2);z-index:9999;overflow-y:auto;padding:22px;animation:slideInRight .25s cubic-bezier(.4,0,.2,1)}
+@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@media(max-width:600px){.modal{top:auto;left:0;right:0;bottom:0;width:100%;height:auto;max-height:88vh;border-left:none;border-top:1px solid var(--border2);border-radius:16px 16px 0 0;animation:slideInUp .25s cubic-bezier(.4,0,.2,1)}@keyframes slideInUp{from{transform:translateY(100%)}to{transform:translateY(0)}}}
 .modal-title{font-size:17px;font-weight:600;margin-bottom:16px}
 .close-x{position:absolute;top:14px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text3);line-height:1;padding:4px}
 .close-x:hover{color:var(--text)}
@@ -141,7 +141,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   <div id="tab-settings"    style="display:none"></div>
 </div>
 
-<div id="overlay" style="display:none"></div>
+<!-- overlay panel is injected dynamically by showOverlay() -->
 <div class="toast-container" id="toasts"></div>
 
 <script>
@@ -878,11 +878,28 @@ async function saveSettings(){
 }
 
 // ── MODALS ───────────────────────────────────────────────────────────────────
-function showOverlay(html){const ov=document.getElementById('overlay');ov.style.display='flex';ov.innerHTML=`<div class="modal">${html}</div>`;ov.onclick=e=>{if(e.target===ov)closeOverlay();};
-  // Prevent panel itself from closing when clicked inside
-  ov.querySelector('.modal').onclick=e=>e.stopPropagation();
+function showOverlay(html){
+  // Remove any existing overlay
+  const existing=document.getElementById('overlay');
+  if(existing){existing.remove();}
+  // Create fresh overlay attached directly to body
+  const ov=document.createElement('div');
+  ov.id='overlay';
+  ov.className='overlay';
+  ov.innerHTML=`<div class="modal">${html}</div>`;
+  document.body.appendChild(ov);
+  // Clicking dark area closes panel
+  ov.addEventListener('click',function(e){if(e.target===ov)closeOverlay();});
+  // Prevent panel itself from closing
+  ov.querySelector('.modal').addEventListener('click',function(e){e.stopPropagation();});
+  // Lock body scroll while panel is open
+  document.body.style.overflow='hidden';
 }
-function closeOverlay(){const ov=document.getElementById('overlay');ov.style.display='none';ov.innerHTML='';}
+function closeOverlay(){
+  const ov=document.getElementById('overlay');
+  if(ov){ov.remove();}
+  document.body.style.overflow='';
+}
 
 function teamSelectOpts(){return teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');}
 function methodOpts(sel='Venmo'){return ['Venmo','PayPal','Cash'].map(m=>`<option${m===sel?' selected':''}>${m}</option>`).join('');}
